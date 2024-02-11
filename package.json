@@ -1,0 +1,39 @@
+{
+  "name": "com.immersal.core",
+  "version": "2.0.0",
+  "displayName": "Immersal SDK",
+  "description": "Immersal Unity SDK is a toolkit for developing spatial augmented reality experiences with the Unity engine.",
+  "unity": "2022.3",
+  "documentationUrl": "https://developers.immersal.com/docs/unitysdk/2.0/",
+  "changelogUrl": "https://developers.immersal.com/docs/unitysdk/changelog/",
+  "dependencies": {
+    "com.unity.feature.development": "1.0.1",
+    "com.unity.xr.arcore": "5.1.0",
+    "com.unity.xr.arfoundation": "5.1.0",
+    "com.unity.xr.arkit": "5.1.0",
+    "com.unity.xr.openxr": "1.8.2",
+    "com.unity.textmeshpro": "3.0.6",
+    "com.unity.modules.ui": "1.0.0",
+    "com.unity.2d.sprite": "1.0.0",
+    "com.unity.render-pipelines.universal": "14.0.9",
+    "com.unity.ai.navigation": "1.1.5"
+ },
+ "keywords": [
+    "augmented reality",
+    "extended reality",
+    "visual positioning",
+    "spatial mapping"
+  ],
+  "author": {
+    "name": "Immersal",
+    "email": "sales@immersal.com",
+    "url": "https://www.immersal.com"
+  },
+  "samples": [
+    {
+      "displayName": "Core Samples",
+      "description": "Samples showcasing how to use the Immersal SDK",
+      "path": "Samples~/Core"
+    }
+  ]
+}
