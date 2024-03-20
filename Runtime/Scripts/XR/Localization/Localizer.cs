@@ -70,6 +70,8 @@ namespace Immersal.XR
 	        }
         }
 
+        private List<ILocalizationMethod> m_ConfiguredLocalizationMethods = new List<ILocalizationMethod>();
+
         // Keep references to running LocalizationTasks in a dictionary
         // Each type of ILocalizationMethod has it's own LocalizationTask
         private Dictionary<ILocalizationMethod, LocalizationTask> m_RunningLocalizationTasks;
@@ -83,6 +85,8 @@ namespace Immersal.XR
         // Invoked once per Localize call if any localization was successful
         // int[] includes mapIds of successful localizations
         public UnityEvent<int[]> OnSuccessfulLocalizations;
+        
+        public UnityEvent<ILocalizationResults> OnLocalizationResult;
 	    
         // Invoked once per Localize call if all localization attempts failed
         public UnityEvent OnFailedLocalizations;
@@ -91,49 +95,63 @@ namespace Immersal.XR
         private bool m_IsLocalizing = false;
         private bool m_HasLocalizedSuccessfully = false;
  
-        // Configuration
+        // Configuration 
+        // Note: this can get called again after the initial configuration if new LocalizationMethods need to be added
         public async Task<ILocalizerConfigurationResult> ConfigureLocalizer(ILocalizerConfiguration configuration)
         {
 	        ImmersalLogger.Log("Configuring Localizer");
 	        
-	        // Check if tasks are running (if being reconfigured after initial config) and stop
-	        if (m_RunningLocalizationTasks is { Count: > 0 })
+	        // Check if tasks are running and stop if requested
+	        if (configuration.StopRunningTasks && m_RunningLocalizationTasks is { Count: > 0 })
 		        await StopRunningLocalizationTasks();
 	        
 	        // Default to failure
 	        ILocalizerConfigurationResult r = new LocalizerConfigurationResult { Success = false };
 	        
-	        // Configure localization methods
 	        List<ILocalizationMethod> configuredMethods = new List<ILocalizationMethod>();
-	        foreach (ILocalizationMethod localizationMethod in AvailableLocalizationMethods)
+	        
+	        // Add new configurations if requested
+	        if (configuration.ConfigurationsToAdd != null)
 	        {
-		        XRMap[] maps = Array.Empty<XRMap>();
-
-		        bool configureMethod = localizationMethod.ConfigurationMode switch
+		        foreach (ILocalizationMethod localizationMethod in AvailableLocalizationMethods)
 		        {
-			        ConfigurationMode.WhenNecessary => configuration.LocalizationMethodXRMapMapping.TryGetValue(
-				        localizationMethod, out maps),
-			        ConfigurationMode.Always => true,
-			        _ => false
-		        };
+			        bool isNecessary = configuration.ConfigurationsToAdd.TryGetValue(localizationMethod, out XRMap[] maps);
 
-		        if (configureMethod)
-		        {
-			        // Try to configure method with associated mapIds
-			        if (!await ConfigureLocalizationMethod(localizationMethod, maps))
+			        bool configureMethod = localizationMethod.ConfigurationMode switch
 			        {
-				        // Configure failed, bail out
-				        return r;
+				        ConfigurationMode.WhenNecessary => isNecessary,
+				        ConfigurationMode.Always => true,
+				        _ => false
+			        };
+
+			        if (configureMethod)
+			        {
+				        // Try to configure method with associated mapIds
+				        if (!await ConfigureLocalizationMethod(localizationMethod, maps))
+				        {
+					        // Configure failed, bail out
+					        return r;
+				        }
+				        configuredMethods.Add(localizationMethod);
 			        }
-			        configuredMethods.Add(localizationMethod);
 		        }
 	        }
 	        
 	        // Refresh our localization method cache to only include configured methods
-	        m_CachedLocalizationMethods = configuredMethods.ToArray();
+	        m_ConfiguredLocalizationMethods.AddRange(configuredMethods);
+	        
+	        // Remove configurations if requested
+	        if (configuration.ConfigurationsToRemove != null)
+	        {
+		        foreach (KeyValuePair<ILocalizationMethod,XRMap[]> keyValuePair in configuration.ConfigurationsToRemove)
+		        {
+			        await RemoveLocalizationMethodConfiguration(keyValuePair.Key, keyValuePair.Value);
+		        }
+	        }
 	        
 	        // Initialize running tasks Dictionary
-	        m_RunningLocalizationTasks = new Dictionary<ILocalizationMethod, LocalizationTask>();
+	        if (m_RunningLocalizationTasks == null)
+				m_RunningLocalizationTasks = new Dictionary<ILocalizationMethod, LocalizationTask>();
 
 	        r.Success = true;
 	        return r;
@@ -150,13 +168,53 @@ namespace Immersal.XR
 		        return false;
 	        }
 
-	        if (await localizationMethod.Configure(maps))
+	        DefaultLocalizationMethodConfiguration config = new DefaultLocalizationMethodConfiguration
+	        {
+		        MapsToAdd = maps
+	        };
+
+	        if (await localizationMethod.Configure(config))
 	        {
 		        return true;
 	        }
 	        
 	        ImmersalLogger.LogError($"Could not configure localization method: {localizationMethod.GetType().Name}.");
 	        return false;
+        }
+
+        private async Task<bool> RemoveLocalizationMethodConfiguration(ILocalizationMethod localizationMethod, XRMap[] maps)
+        {
+	        // Check if configured
+	        if (!m_ConfiguredLocalizationMethods.Contains(localizationMethod))
+	        {
+		        ImmersalLogger.LogError("Trying to remove configurations from a non-configured localization method.");
+		        return false;
+	        }
+	        
+	        DefaultLocalizationMethodConfiguration config = new DefaultLocalizationMethodConfiguration
+	        {
+		        MapsToRemove = maps
+	        };
+	        
+	        ImmersalLogger.Log($"Removing {maps.Length} maps from {localizationMethod.GetType().Name} configuration");
+
+	        // Configure will return false if the method does not have any maps configured after removal
+	        // => should remove the configuration entirely if set to WhenNecessary
+	        if (!await localizationMethod.Configure(config) && localizationMethod.ConfigurationMode == ConfigurationMode.WhenNecessary)
+	        {
+		        ImmersalLogger.Log($"Removing {localizationMethod.GetType().Name} configuration");
+		        
+		        // Cancel possible running task
+		        if (m_RunningLocalizationTasks.TryGetValue(localizationMethod, out LocalizationTask task))
+		        {
+			        task.CancellationTokenSource.Cancel();
+			        await task.LocalizationMethodTask;
+		        }
+
+		        m_ConfiguredLocalizationMethods.Remove(localizationMethod);
+	        }
+
+	        return true;
         }
         
         // This ILocalizer implementation can run multiple asynchronous localization tasks (one per method)
@@ -172,7 +230,7 @@ namespace Immersal.XR
 	        List<ILocalizationResult> results = new List<ILocalizationResult>();
 
 	        // Make sure all LocalizationTasks are running
-	        foreach (ILocalizationMethod localizationMethod in AvailableLocalizationMethods)
+	        foreach (ILocalizationMethod localizationMethod in m_ConfiguredLocalizationMethods)
 	        {
 		        // If a task is already running, we check if has completed since last localization cycle
 		        if (m_RunningLocalizationTasks.TryGetValue(localizationMethod, out LocalizationTask task))
@@ -222,6 +280,7 @@ namespace Immersal.XR
 	        };
 
 	        m_IsLocalizing = false;
+	        OnLocalizationResult?.Invoke(localizationResults);
 	        return localizationResults;
         }
 
@@ -239,7 +298,7 @@ namespace Immersal.XR
 	        // Combine all currently finished results
 	        List<ILocalizationResult> resultList = new List<ILocalizationResult>();
 	        
-	        foreach (ILocalizationMethod localizationMethod in AvailableLocalizationMethods)
+	        foreach (ILocalizationMethod localizationMethod in m_ConfiguredLocalizationMethods)
 	        {
 		        if (m_RunningLocalizationTasks.TryGetValue(localizationMethod, out LocalizationTask task))
 		        {
@@ -258,7 +317,7 @@ namespace Immersal.XR
         private void CleanUpLocalizationTasks()
         {
 	        // remove cancelled tasks
-	        foreach (ILocalizationMethod localizationMethod in AvailableLocalizationMethods)
+	        foreach (ILocalizationMethod localizationMethod in m_ConfiguredLocalizationMethods)
 	        {
 		        if (m_RunningLocalizationTasks.TryGetValue(localizationMethod, out LocalizationTask task))
 		        {
@@ -312,9 +371,9 @@ namespace Immersal.XR
 	         await StopRunningLocalizationTasks();
 	         
 	         // Clean up methods
-	         await Task.WhenAll(AvailableLocalizationMethods.Select(method => method.StopAndCleanUp()));
-	         //m_LocalizationMethods.Clear();
-
+	         await Task.WhenAll(m_ConfiguredLocalizationMethods.Select(method => method.StopAndCleanUp()));
+	         m_ConfiguredLocalizationMethods.Clear();
+	         
 	         m_HasLocalizedSuccessfully = false;
          }
     }
@@ -326,6 +385,14 @@ namespace Immersal.XR
 
     public struct DefaultLocalizerConfiguration : ILocalizerConfiguration
     {
-	    public Dictionary<ILocalizationMethod, XRMap[]> LocalizationMethodXRMapMapping { get; set; }
+	    public Dictionary<ILocalizationMethod, XRMap[]> ConfigurationsToAdd { get; set; }
+	    public Dictionary<ILocalizationMethod, XRMap[]> ConfigurationsToRemove { get; set; }
+	    public bool StopRunningTasks { get; set; }
+    }
+
+    public struct DefaultLocalizationMethodConfiguration : ILocalizationMethodConfiguration
+    {
+	    public XRMap[] MapsToAdd { get; set; }
+	    public XRMap[] MapsToRemove { get; set; }
     }
 }

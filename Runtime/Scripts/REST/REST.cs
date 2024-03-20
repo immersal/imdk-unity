@@ -267,6 +267,7 @@ namespace Immersal.REST
         public float r20;
         public float r21;
         public float r22;
+        public int confidence;
         public float time;
     }
 

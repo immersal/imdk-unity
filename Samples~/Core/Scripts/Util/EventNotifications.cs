@@ -11,7 +11,9 @@ Contact sales@immersal.com for licensing requests.
 
 using System.Collections;
 using System.Collections.Generic;
+using Immersal;
 using Immersal.Samples.Util;
+using Immersal.XR;
 using UnityEngine;
 
 public class EventNotifications : MonoBehaviour
@@ -59,6 +61,27 @@ public class EventNotifications : MonoBehaviour
     public static void OnLocalizerFail()
     {
         NotificationManager.Instance.GenerateWarning("Failed localization");
+    }
+
+    public static void OnLocalizationResult(ILocalizationResults results)
+    {
+        List<LocalizeInfo> localizeInfos = new List<LocalizeInfo>();
+        foreach (ILocalizationResult localizationResult in results.Results)
+        {
+            if (localizationResult.Success)
+                localizeInfos.Add(localizationResult.LocalizeInfo);
+        }
+
+        if (localizeInfos.Count == 0)
+            return;
+
+        string output = "";
+        foreach (LocalizeInfo info in localizeInfos)
+        {
+            output = $"{output}{info.mapId}: {info.confidence}\n";
+        }
+        
+        NotificationManager.Instance.GenerateSuccess(output);
     }
     
     public static void OnPlatformTrackingLost()

@@ -23,7 +23,9 @@ namespace Immersal.XR
 
     public interface ILocalizerConfiguration
     {
-        Dictionary<ILocalizationMethod, XRMap[]> LocalizationMethodXRMapMapping { get; }
+        Dictionary<ILocalizationMethod, XRMap[]> ConfigurationsToAdd { get; }
+        Dictionary<ILocalizationMethod, XRMap[]> ConfigurationsToRemove { get; }
+        bool StopRunningTasks { get; }
     }
 
     public interface ILocalizerConfigurationResult

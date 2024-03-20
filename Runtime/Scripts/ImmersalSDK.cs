@@ -28,7 +28,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.0.0";
+		public static string sdkVersion = "2.0.1";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer, ChinaServer };
 		
@@ -100,7 +100,7 @@ namespace Immersal
 
         public ITrackingStatus TrackingStatus => TrackingAnalyzer.TrackingStatus;
         public bool IsReady => m_IsReady;
-
+        public int LicenseLevel => m_LicenseLevel;
         public static HttpClient client;
 
         public int targetFrameRate
@@ -169,8 +169,10 @@ namespace Immersal
         public UnityEvent OnReset;
 
         private string m_LocalizationServer = ServerList[0];
+        private int m_LicenseLevel = -1;
         
         private bool m_IsReady = false;
+        private bool m_PluginCallbackRegistered = false;
         private bool m_PlatformIsConfigured = false;
         private bool m_LocalizerIsConfigured = false;
         private bool m_MapsAreRegisteredAndLoaded = false;
@@ -209,6 +211,8 @@ namespace Immersal
         {
 	        ImmersalLogger.Level = m_LoggingLevel;
 	        
+	        ImmersalLogger.Log("Initializing ImmersalSDK", ImmersalLogger.LoggingLevel.Verbose);   
+	        
 	        if (instance == null)
 	        {
 		        instance = this;
@@ -227,9 +231,13 @@ namespace Immersal
 	        }
 	        
 	        // plugin log callback
-	        LogCallback callback_delegate = new LogCallback(Log);
-	        IntPtr intptr_delegate = Marshal.GetFunctionPointerForDelegate(callback_delegate);
-	        Native.PP_RegisterLogCallback(intptr_delegate);
+	        if (!m_PluginCallbackRegistered)
+	        {
+		        LogCallback callback_delegate = new LogCallback(Log);
+		        IntPtr intptr_delegate = Marshal.GetFunctionPointerForDelegate(callback_delegate);
+		        Native.PP_RegisterLogCallback(intptr_delegate);
+		        m_PluginCallbackRegistered = true;
+	        }
 	        
 			// http client
 	        HttpClientHandler handler = new HttpClientHandler();
@@ -264,15 +272,16 @@ namespace Immersal
         {
 	        if (Application.platform == RuntimePlatform.IPhonePlayer || Application.platform == RuntimePlatform.Android)
 	        {
-		        int r = Core.ValidateUser(developerToken);
-		        string licenseLevel = r >= 1 ? "Enterprise" : "Free";
+		        m_LicenseLevel = Core.ValidateUser(developerToken);
+		        string licenseLevel = m_LicenseLevel >= 1 ? "Enterprise" : "Free";
 		        ImmersalLogger.Log($"{licenseLevel} License");
 	        }
 	        else
 	        {
 		        JobStatusAsync j = new JobStatusAsync();
 				SDKStatusResult result = await j.RunJobAsync();
-				string licenseLevel = result.level >= 1 ? "Enterprise" : "Free";
+				m_LicenseLevel = result.level;
+				string licenseLevel = m_LicenseLevel >= 1 ? "Enterprise" : "Free";
 				ImmersalLogger.Log($"{licenseLevel} License");
 	        }
         }
@@ -359,7 +368,8 @@ namespace Immersal
 
             DefaultLocalizerConfiguration config = new DefaultLocalizerConfiguration
             {
-	            LocalizationMethodXRMapMapping = mapping
+	            ConfigurationsToAdd = mapping,
+	            StopRunningTasks = true
             };
             
             try
@@ -426,7 +436,7 @@ namespace Immersal
         private void OnDestroy()
         {
             m_IsReady = false;
-            MapManager.RemoveAllMaps();
+            MapManager.RemoveAllMaps(false);
         }
 
         public void TriggerSoftReset()
@@ -456,12 +466,18 @@ namespace Immersal
 	        }
         }
 
+        [ContextMenu("RestartSdk")]
         public async void RestartSdk()
         {
-			m_IsReady = false;
+			ImmersalLogger.Log("Restarting ImmersalSDK", ImmersalLogger.LoggingLevel.Verbose);
+	        m_IsReady = false;
 	        
 			// Stop and clean up components
 			await Session.StopSession();
+			
+			// Clear maps
+			MapManager.RemoveAllMaps();
+			m_MapsAreRegisteredAndLoaded = false;
 	        
 	        m_LocalizerIsConfigured = false;
 	        await Localizer.StopAndCleanUp();
@@ -471,10 +487,6 @@ namespace Immersal
 	        
 	        // Reset scenes
 	        await ResetScenes();
-
-	        // Clear maps
-	        MapManager.RemoveAllMaps();
-	        m_MapsAreRegisteredAndLoaded = false;
 	        
 	        // Invoke event
 	        OnReset?.Invoke();

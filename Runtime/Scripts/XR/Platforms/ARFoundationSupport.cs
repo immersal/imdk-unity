@@ -91,8 +91,13 @@ namespace Immersal.XR
         private IntPtr m_PixelBuffer = IntPtr.Zero;
         private bool m_isTracking = false;
         
-        private void Awake()
+        public async Task<IPlatformConfigureResult> ConfigurePlatform()
         {
+            ImmersalLogger.Log("Configuring ARF Platform");
+            
+#if UNITY_EDITOR
+            ImmersalLogger.LogWarning("Running AR Foundation Platform in Unity Editor will result in failed updates.");
+#endif
             m_CameraManager = UnityEngine.Object.FindObjectOfType<ARCameraManager>();
 
             if (!m_CameraManager)
@@ -107,15 +112,6 @@ namespace Immersal.XR
             }
 
             if (Camera.main != null) m_CameraTransform = Camera.main.transform;
-        }
-
-        public async Task<IPlatformConfigureResult> ConfigurePlatform()
-        {
-            ImmersalLogger.Log("Configuring ARF Platform");
-            
-#if UNITY_EDITOR
-            ImmersalLogger.LogWarning("Running AR Foundation Platform in Unity Editor will result in failed updates.");
-#endif
 
             for (int i = 0; i < m_MaxConfigurationAttempts; i++)
             {
@@ -279,7 +275,7 @@ namespace Immersal.XR
             return (true, data);
         }
 
-        private void GetPlaneDataFast(ref IntPtr pixels, XRCpuImage image)
+        public void GetPlaneDataFast(ref IntPtr pixels, XRCpuImage image)
         {
             XRCpuImage.Plane plane = image.GetPlane(0);	// use the Y plane
             int width = image.width, height = image.height;
@@ -309,7 +305,7 @@ namespace Immersal.XR
             }
         }
 
-        private bool GetIntrinsics(out Vector4 intrinsics)
+        public bool GetIntrinsics(out Vector4 intrinsics)
         {
             intrinsics = Vector4.zero;
             XRCameraIntrinsics intr = default;
@@ -327,7 +323,7 @@ namespace Immersal.XR
             return success;
         }
         
-        private Quaternion GetOrientation()
+        public Quaternion GetOrientation()
         {
             float angle = 0f;
             switch (Screen.orientation)

@@ -27,7 +27,7 @@ namespace Immersal
             None = 4
         }
         
-        public static LoggingLevel Level = LoggingLevel.ErrorsAndWarnings;
+        public static LoggingLevel Level = LoggingLevel.All;
 
         private const bool m_IncludeCallerName = true;
         private const string m_AdditionalPrefix = "";

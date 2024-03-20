@@ -18,7 +18,6 @@ using System.Xml;
 using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.XR.Management;
-using UnityEditor.XR.Management.Metadata;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -141,7 +140,7 @@ namespace Immersal
 
         private double lastUpdate;
         private const double updateInterval = 1.0;
-        private const double backgroundUpdateInterval = 3.0;
+        private const double backgroundUpdateInterval = 1.0;
 
         private static class Content
         {
@@ -167,8 +166,6 @@ namespace Immersal
             public static GUIStyle s_FixAll;
         }
 
-        private static bool s_Dirty = true;
-
         protected void OnFocus() => UpdateIssues(true);
 
         protected void Update() => UpdateIssues();
@@ -176,11 +173,9 @@ namespace Immersal
         private void UpdateIssues(bool force = false)
         {
             var interval = EditorWindow.focusedWindow == this ? updateInterval : backgroundUpdateInterval;
-            if (!s_Dirty && !force && EditorApplication.timeSinceStartup - lastUpdate < interval)
+            if (!force && EditorApplication.timeSinceStartup - lastUpdate < interval)
                 return;
 
-            s_Dirty = false;
-            
             // Fix all
             foreach (ImmersalProjectValidation.ProjectIssue issue in fixAllIssues)
             {
@@ -189,12 +184,13 @@ namespace Immersal
             fixAllIssues.Clear();
 
             ImmersalProjectValidation.CheckIssues(projectIssues);
+            Repaint();
 
             if (projectIssues.Count > 0)
             {
                 if(SavedValidationState != ProjectValidationState.Uninitialized)
                     SavedValidationState = ProjectValidationState.Issues;
-                Repaint();
+                
             }
             else
             {
@@ -287,7 +283,7 @@ namespace Immersal
 
         public void OnActiveBuildTargetChanged(BuildTarget previousTarget, BuildTarget newTarget)
         {
-            UpdateIssues();
+            UpdateIssues(true);
         }
 
         public int callbackOrder => 0;
@@ -307,9 +303,20 @@ namespace Immersal
         }
 
         public static string PlayerPrefsStateString = "ImmersalProjectValidationState"; 
-        public static BuildTargetGroup ActiveBuildTargetGroup => EditorUserBuildSettings.selectedBuildTargetGroup;
+        
+        public static BuildTargetGroup ActiveBuildTargetGroup = ActiveBuildTarget switch
+        {
+            BuildTarget.iOS => BuildTargetGroup.iOS,
+            BuildTarget.Android => BuildTargetGroup.Android,
+            BuildTarget.StandaloneOSX => BuildTargetGroup.Standalone,
+            BuildTarget.StandaloneWindows => BuildTargetGroup.Standalone,
+            BuildTarget.StandaloneWindows64 => BuildTargetGroup.Standalone,
+            BuildTarget.StandaloneLinux64 => BuildTargetGroup.Standalone,
+            _ => BuildTargetGroup.Unknown
+        };
+        
         public static BuildTarget ActiveBuildTarget => EditorUserBuildSettings.activeBuildTarget;
-
+        
         public static void CheckIssues(List<ProjectIssue> issues)
         {
             issues.Clear();
@@ -389,7 +396,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "Camera Usage Description must be defined.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.iOS || PlayerSettings.iOS.cameraUsageDescription != "",
+                Check = () => ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.cameraUsageDescription != "",
                 Fix = () => { PlayerSettings.iOS.cameraUsageDescription = "Required for augmented reality support."; },
                 Error = true,
             },
@@ -397,15 +404,15 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "Location Usage Description must be defined.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.iOS || PlayerSettings.iOS.locationUsageDescription != "",
+                Check = () => ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.locationUsageDescription != "",
                 Fix = () => { PlayerSettings.iOS.locationUsageDescription = "Required for satellite positioning support."; },
                 Error = true,
             },
             // minimum ios version 12.0
             new ProjectIssue()
             {
-                Message = () => "Target minimum iOS Version must be 12.0.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.iOS || PlayerSettings.iOS.targetOSVersionString == "12.0",
+                Message = () => "Target minimum iOS Version must be 12.0 or higher.",
+                Check = () => ActiveBuildTarget != BuildTarget.iOS || (float.TryParse(PlayerSettings.iOS.targetOSVersionString, out float minVersion) && minVersion >= 12.0f),
                 Fix = () => { PlayerSettings.iOS.targetOSVersionString = "12.0"; },
                 Error = true,
             },
@@ -413,7 +420,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "Minimum Android API Level must be 26 or higher.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.Android ||
+                Check = () => ActiveBuildTarget != BuildTarget.Android ||
                               PlayerSettings.Android.minSdkVersion >= AndroidSdkVersions.AndroidApiLevel26,
                 Fix = () => { PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26; },
                 Error = true,
@@ -422,8 +429,8 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "ARM64 Target Architecture must be enabled.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.Android ||
-                                (PlayerSettings.Android.targetArchitectures & AndroidArchitecture.ARM64) != 0,
+                Check = () => ActiveBuildTarget != BuildTarget.Android ||
+                              (PlayerSettings.Android.targetArchitectures & AndroidArchitecture.ARM64) != 0,
                 Fix = () => { PlayerSettings.Android.targetArchitectures |= AndroidArchitecture.ARM64; },
                 Error = true,
             },
@@ -431,9 +438,10 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "ARKit XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.iOS || IsPluginLoaderEnabled("ARKitLoader"),
+                Check = () => ActiveBuildTarget != BuildTarget.iOS || IsPluginLoaderEnabled("ARKitLoader"),
                 Fix = () =>
                 {
+                    EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
                     SettingsService.OpenProjectSettings("Project/XR Plug-in Management");
                 },
                 Error = true,
@@ -443,9 +451,10 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "ARCore XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.Android || IsPluginLoaderEnabled("ARCoreLoader"),
+                Check = () => ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("ARCoreLoader"),
                 Fix = () =>
                 {
+                    EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
                     SettingsService.OpenProjectSettings("Project/XR Plug-in Management");
                 },
                 Error = true,
@@ -463,7 +472,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "Custom Android Manifest is required.",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.Android || CheckManifestExists(),
+                Check = () => ActiveBuildTarget != BuildTarget.Android || CheckManifestExists(),
                 Fix = CreateManifest,
                 Error = true,
             },
@@ -471,7 +480,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "Android Manifest should include network permissions",
-                Check = () => ActiveBuildTargetGroup != BuildTargetGroup.Android || CheckManifestContent(),
+                Check = () => ActiveBuildTarget != BuildTarget.Android || CheckManifestContent(),
                 Fix = ConfigureManifest,
                 Error = false,
             },
@@ -491,6 +500,7 @@ namespace Immersal
             XRGeneralSettings generalSettings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(ActiveBuildTargetGroup);
             if (generalSettings == null)
                 return false;
+                
             XRManagerSettings managerSettings = generalSettings.AssignedSettings;
             return managerSettings != null && managerSettings.activeLoaders.Any(loader => loader.name == loaderName);
         }
@@ -577,7 +587,7 @@ namespace Immersal
                 return true;
             }
 
-            Debug.LogWarning($"Could not locate {packageRelativePath} in Immersal package.");
+            ImmersalLogger.LogWarning($"Could not locate {packageRelativePath} in Immersal package.");
             return false;
         }
 

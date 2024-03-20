@@ -35,14 +35,35 @@ namespace Immersal.XR
 
 	    private SDKMapId[] m_MapIds;
         
-		public Task<bool> Configure(XRMap[] maps)
+		public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
 		{
 			List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
-	        foreach (XRMap map in maps)
+			
+			// Add maps
+			if (configuration.MapsToAdd != null)
+			{
+				foreach (XRMap map in configuration.MapsToAdd)
+				{
+					mapList.Add(new SDKMapId {id = map.mapId});
+				}
+			}
+	        
+	        // Remove maps
+	        if (configuration.MapsToRemove != null)
 	        {
-		        mapList.Add(new SDKMapId {id = map.mapId});
+		        foreach (XRMap map in configuration.MapsToRemove)
+		        {
+			        mapList.Remove(new SDKMapId {id = map.mapId});
+		        }
+		        
+		        // Check if there are no configured maps left
+		        if (mapList.Count == 0)
+		        {
+			        m_MapIds = Array.Empty<SDKMapId>();
+			        return Task.FromResult(false);
+		        }
 	        }
-
+	        
 	        m_MapIds = mapList.ToArray();
 	        return Task.FromResult(true);
         }
@@ -88,14 +109,11 @@ namespace Immersal.XR
 	        j.image = t.Result.Item1;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;
-				
-	        j.solverType = (int)m_SolverType;
-	        if (m_SolverType == SolverType.Lean)
-	        {
-		        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
-		        rot.SwitchHandedness();
-		        j.rotation = rot;
-	        }
+			j.solverType = (int)m_SolverType;
+
+	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
+	        rot.SwitchHandedness();
+	        j.rotation = rot;
 
 	        SDKLocalizeResult result = await j.RunJobAsync(cancellationToken);
 
@@ -103,7 +121,7 @@ namespace Immersal.XR
 
 	        if (result.success)
 	        {
-		        ImmersalLogger.Log($"Relocalized in {elapsedTime} seconds");
+		        ImmersalLogger.Log($"Relocalized to mapId {result.map} in {elapsedTime} seconds");
 
 		        int mapId = result.map;
 
@@ -116,9 +134,10 @@ namespace Immersal.XR
 
 			        locInfo = new LocalizeInfo
 			        {
+				        mapId = mapId,
 				        position = new Vector3(result.px, result.py, result.pz),
 				        rotation = m.rotation,
-				        confidence = 0
+				        confidence = result.confidence
 			        };
 
 			        r.Success = true;
@@ -136,7 +155,7 @@ namespace Immersal.XR
         
         public Task StopAndCleanUp()
         {
-	        // This implementation has nothing to clean up
+	        m_MapIds = Array.Empty<SDKMapId>();
 	        return Task.CompletedTask;
         }
 

@@ -2012,33 +2012,9 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_Mode
-      value: 5
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_Target
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_CallState
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_MethodName
-      value: GenerateNotification
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_TargetAssemblyTypeName
-      value: Immersal.Samples.Util.NotificationManager, Immersal.Samples.Core
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_Arguments.m_StringArgument
-      value: TRACKING LOST
-      objectReference: {fileID: 0}
-    - target: {fileID: 6509155160601367522, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: OnPlatformTrackingLost.m_PersistentCalls.m_Calls.Array.data[1].m_Arguments.m_ObjectArgumentAssemblyTypeName
-      value: UnityEngine.Object, UnityEngine
+    - target: {fileID: 3150119538342652997, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
+      propertyPath: m_ConfigurationMode
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -2423,6 +2399,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 12a6b90440b704e05a690c049108c933, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_LocMethodChoice: 0
   m_EmbeddedMap: {fileID: 0}
 --- !u!1 &1613922701
 GameObject:

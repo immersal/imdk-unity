@@ -35,14 +35,35 @@ namespace Immersal.XR
 
 	    private SDKMapId[] m_MapIds;
         
-	    public Task<bool> Configure(XRMap[] maps)
+	    public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
 	    {
 		    List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
-		    foreach (XRMap map in maps)
+			
+		    // Add maps
+		    if (configuration.MapsToAdd != null)
 		    {
-			    mapList.Add(new SDKMapId {id = map.mapId});
+			    foreach (XRMap map in configuration.MapsToAdd)
+			    {
+				    mapList.Add(new SDKMapId {id = map.mapId});
+			    }
 		    }
-
+	        
+		    // Remove maps
+		    if (configuration.MapsToRemove != null)
+		    {
+			    foreach (XRMap map in configuration.MapsToRemove)
+			    {
+				    mapList.Remove(new SDKMapId {id = map.mapId});
+			    }
+		        
+			    // Check if there are no configured maps left
+			    if (mapList.Count == 0)
+			    {
+				    m_MapIds = Array.Empty<SDKMapId>();
+				    return Task.FromResult(false);
+			    }
+		    }
+	        
 		    m_MapIds = mapList.ToArray();
 		    return Task.FromResult(true);
 	    }
@@ -87,15 +108,12 @@ namespace Immersal.XR
 
 	        j.image = t.Result.Item1;
 	        j.intrinsics = intrinsics;
-	        j.mapIds = m_MapIds;
-				
+	        j.mapIds = m_MapIds;			
 	        j.solverType = (int)m_SolverType;
-	        if (m_SolverType == SolverType.Lean)
-	        {
-		        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
-		        rot.SwitchHandedness();
-		        j.rotation = rot;
-	        }
+	        
+	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
+	        rot.SwitchHandedness();
+	        j.rotation = rot;
 
 	        SDKGeoPoseResult result = await j.RunJobAsync(cancellationToken);
 
@@ -109,8 +127,8 @@ namespace Immersal.XR
 		        double latitude = result.latitude;
 		        double longitude = result.longitude;
 		        double ellipsoidHeight = result.ellipsoidHeight;
-		        Quaternion rot = new Quaternion(result.quaternion[1], result.quaternion[2], result.quaternion[3], result.quaternion[0]);
-		        ImmersalLogger.Log($"GeoPose returned latitude: {latitude}, longitude: {longitude}, ellipsoidHeight: {ellipsoidHeight}, quaternion: {rot}");
+		        Quaternion quat = new Quaternion(result.quaternion[1], result.quaternion[2], result.quaternion[3], result.quaternion[0]);
+		        ImmersalLogger.Log($"GeoPose returned latitude: {latitude}, longitude: {longitude}, ellipsoidHeight: {ellipsoidHeight}, quaternion: {quat}");
 
 		        double[] ecef = new double[3];
 		        double[] wgs84 = new double[3] { latitude, longitude, ellipsoidHeight };
@@ -120,10 +138,11 @@ namespace Immersal.XR
 		        {
 			        double[] mapToEcef = entry.Map.MapToEcefGet();
 			        Core.PosEcefToMap(out Vector3 mapPos, ecef, mapToEcef);
-			        Core.RotEcefToMap(out Quaternion mapRot, rot, mapToEcef);
+			        Core.RotEcefToMap(out Quaternion mapRot, quat, mapToEcef);
 			        
 			        locInfo = new LocalizeInfo
 			        {
+				        mapId = mapId,
 				        position = mapPos,
 				        rotation = mapRot,
 				        confidence = 0
@@ -144,7 +163,7 @@ namespace Immersal.XR
         
         public Task StopAndCleanUp()
         {
-	        // This implementation has nothing to clean up
+	        m_MapIds = Array.Empty<SDKMapId>();
 	        return Task.CompletedTask;
         }
 

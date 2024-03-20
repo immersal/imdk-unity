@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.0.1] - 2024-03-20
+
+### Added
+- Real time mapping sample and related scripts
+- Confidence value in REST SDKLocalizeResult and ServerLocalization
+- New events in Localizer and MapManager
+- Localization method option in map download sample
+- ImmersalSession burst mode parameters
+
+### Changed
+- Plugins updated to 2.0.1
+- Exposed more ARFoundationSupport methods as public
+- ARFoundationSupport initialization logic moved to ConfigurePlatform
+- ServerLocalization now always includes rotation in requests
+- IImmersalSession.StopSession() now has a parameter for cancelling the currently running task.
+
+### Fixed
+- Project validation bugs
+- Localizer & LocalizationMethod runtime configuration bugs
+- Missing mapId from ServerLocalization LocalizeInfo
+- XRMap Metadata parsing bug
+- RestartSdk bugs
+
+### Removed
+- Legacy embedded map logic in map download sample
+
 ## [2.0.0] - 2024-02-12
 
 The SDK has been refactored in a major way.

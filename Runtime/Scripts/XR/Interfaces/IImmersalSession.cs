@@ -19,7 +19,7 @@ public interface IImmersalSession
     void PauseSession();
     void ResumeSession();
     Task ResetSession();
-    Task StopSession();
+    Task StopSession(bool cancelRunningTask = true);
     void StartSession();
     Task LocalizeOnce();
 }

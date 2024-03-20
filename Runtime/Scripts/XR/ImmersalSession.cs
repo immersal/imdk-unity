@@ -28,11 +28,17 @@ namespace Immersal.XR
 		[Tooltip("Update Session continuously")] [SerializeField]
 		private bool m_UpdateContinuously = true;
 
-		[Tooltip("Seconds between continous updates")] [SerializeField]
+		[Tooltip("Seconds between continuous updates")] [SerializeField]
 		private float m_SessionUpdateInterval = 2.0f;
 
 		[Tooltip("Try to localize at maximum speed at app startup / resume")] [SerializeField]
 		private bool m_BurstMode = true;
+		
+		[Tooltip("Number of successful localizations to turn off burst mode")] [SerializeField]
+		private int m_BurstSuccessCount = 10;
+		
+		[Tooltip("Time limit for burst mode in seconds")] [SerializeField]
+		private float m_BurstTimeLimit = 15f;
 
 		[Tooltip("Reset stats and ARSpace filters on application pause")] [SerializeField]
 		private bool m_ResetOnPause = true;
@@ -146,7 +152,7 @@ namespace Immersal.XR
 			float curTime = Time.unscaledTime;
 
 			// deactivate burst after enough success or certain time
-			if (sdk.TrackingStatus?.LocalizationSuccessCount >= 10 || curTime - m_BurstStartTime >= 15f)
+			if (sdk.TrackingStatus?.LocalizationSuccessCount >= m_BurstSuccessCount || curTime - m_BurstStartTime >= m_BurstTimeLimit)
 			{
 				SetBurstMode(false);
 			}
@@ -319,11 +325,15 @@ namespace Immersal.XR
 			StartSession();
 		}
 
-		public async Task StopSession()
+		public async Task StopSession(bool cancelRunningTask = true)
 		{
-			// Send cancellation token and wait to finish current tasks
-			m_CTS.Cancel();
-			await m_CurrentRunningTask;
+			// Send cancellation token to abort running task
+			if (cancelRunningTask)
+				m_CTS?.Cancel();
+			
+			// Wait for running task to finish
+			if (m_CurrentRunningTask != null)
+				await m_CurrentRunningTask;
 			
 			m_SessionIsRunning = false;
 			m_RunningTasks = false;

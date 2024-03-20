@@ -23,6 +23,12 @@ namespace Immersal.XR
         LocalizeInfo LocalizeInfo { get; }
     }
 
+    public interface ILocalizationMethodConfiguration
+    {
+        XRMap[] MapsToAdd { get; }
+        XRMap[] MapsToRemove { get; }
+    }
+
     public enum ConfigurationMode
     {
         WhenNecessary,
@@ -33,7 +39,7 @@ namespace Immersal.XR
     {
         ConfigurationMode ConfigurationMode { get; }
         IMapOption[] MapOptions { get; }
-        Task<bool> Configure(XRMap[] maps);
+        Task<bool> Configure(ILocalizationMethodConfiguration configuration);
         Task<ILocalizationResult> Localize(ICameraData cameraData, CancellationToken cancellationToken);
         Task StopAndCleanUp();
         Task OnMapRegistered(XRMap map);

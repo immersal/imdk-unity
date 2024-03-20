@@ -17,6 +17,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Immersal.REST;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 
@@ -29,6 +30,8 @@ namespace Immersal.XR
 {
     public static class MapManager
     {
+        public static UnityEvent<int> MapRegisteredAndLoaded;
+        
         private static Dictionary<int, MapEntry> m_MapEntries = new Dictionary<int, MapEntry>();
         
         public static async Task RegisterAndLoadMap(XRMap map, ISceneUpdateable sceneParent)
@@ -52,22 +55,27 @@ namespace Immersal.XR
 
             await map.LocalizationMethod.OnMapRegistered(map);
 
-            await LoadMap(map);
-         
+            bool loadSuccess = await LoadMap(map);
+
+            if (loadSuccess)
+            {
+                MapRegisteredAndLoaded?.Invoke(map.mapId);
+            }
+            
             ImmersalLogger.Log($"RegisterAndLoad for map {map.mapId} complete.");
         }
         
         // The LoadMap method checks if the map has a MapLoadingOption and loads the map
         // into the Immersal plugin based on the configuration.
         // Note: not all maps require loading (ServerLocalization for example)
-        public static async Task LoadMap(XRMap map)
+        public static async Task<bool> LoadMap(XRMap map)
         {
             MapLoadingOption mlo = map.MapOptions.FirstOrDefault(option => option.Name == "MapLoading") as MapLoadingOption;
             if (mlo == null)
             {
                 ImmersalLogger.Log($"No MapLoadingOption on map {map.mapId}, skipping loading.");
                 // No MapLoadingOption -> assume map does not need to be loaded
-                return;
+                return true;
             }
             
             ImmersalLogger.Log($"Loading map {map.mapId} according to MapLoadingOption.");
@@ -83,12 +91,15 @@ namespace Immersal.XR
                 map.CreateVisualization(XRMapVisualization.RenderMode.EditorAndRuntime, true);
                 map.Visualization.LoadPly(plyResult.data, map.mapName);
             }
+
+            // Only report failure if loading is attempted and failed
+            bool loadSuccess = true;
             
             // Load raw bytes. This option is not exposed in the inspector, only for runtime configs.
             if (mlo.Bytes is { Length: > 0 }) 
             {
                 ImmersalLogger.Log($"Loading provided bytes for: {map.mapId}");
-                await TryToLoadMap(mlo.Bytes, map.mapId);
+                loadSuccess = await TryToLoadMap(mlo.Bytes, map.mapId);
             }
             // Download map data
             else if (mlo.m_SerializedDataSource == (int)MapDataSource.Download)
@@ -101,7 +112,7 @@ namespace Immersal.XR
 
                 SDKMapResult result = await j.RunJobAsync();
                 ImmersalLogger.Log($"Loading downloaded mapfile for map {map.mapId}");
-                await TryToLoadMap(result.mapData, map.mapId);
+                loadSuccess = await TryToLoadMap(result.mapData, map.mapId);
             }
             // Use embedded mapfile
             else if (mlo.m_SerializedDataSource == (int)MapDataSource.Embed)
@@ -109,19 +120,21 @@ namespace Immersal.XR
                 if (map.mapFile == null)
                 {
                     ImmersalLogger.LogError($"Missing map file for: {map.mapId}.");
-                    return;
+                    return false;
                 }
                 ImmersalLogger.Log($"Loading embedded mapfile for: {map.mapId}");
                 byte[] mapBytes = map.mapFile.bytes;
-                await TryToLoadMap(mapBytes, map.mapId);
+                loadSuccess = await TryToLoadMap(mapBytes, map.mapId);
             }
             else
             {
-                ImmersalLogger.LogError("Unexpected DataSource configuration");
+                ImmersalLogger.Log("MapLoadingOption not configured to load any map data.");
             }
+
+            return loadSuccess;
         }
 
-        public static async Task TryToLoadMap(byte[] mapBytes, int mapId)
+        public static async Task<bool> TryToLoadMap(byte[] mapBytes, int mapId)
         {
             // Check if map is registered
             if (TryGetMapEntry(mapId, out MapEntry entry))
@@ -130,12 +143,14 @@ namespace Immersal.XR
                 {
                     Task<int> t = Task.Run(() => { return Immersal.Core.LoadMap(mapId, mapBytes); });
                     await t;
+                    return t.Result != -1;
                 }
             }
             else
             {
                 ImmersalLogger.LogError($"Trying to load unregistered map ID: {mapId}");
             }
+            return false;
         }
 
         public static async Task<MapCreationResult> TryCreateMap(MapCreationParameters parameters, bool unconfigured = false)
@@ -144,8 +159,10 @@ namespace Immersal.XR
             MapCreationResult result = new MapCreationResult { Success = false };
 
             // GameObject
-            parameters.Name = string.IsNullOrEmpty(parameters.Name) ? "New map" : parameters.Name;
+            parameters.Name = string.IsNullOrEmpty(parameters.Name) ? "Unnamed map" : parameters.Name;
             GameObject go = new GameObject(parameters.Name);
+            
+            ImmersalLogger.Log($"Creating a new map: '{parameters.Name}'");
             
             // XRMap component
             XRMap map = go.AddComponent<XRMap>();
@@ -160,28 +177,6 @@ namespace Immersal.XR
             
             go.transform.SetParent(parameters.SceneParent.GetTransform());
             result.SceneParent = parameters.SceneParent;
-            
-            // Localization method
-            if (parameters.LocalizationMethod == null)
-            {
-                ILocalizationMethod[] availableMethods = AvailableLocalizationMethods;
-                ILocalizationMethod method =
-                    availableMethods?.FirstOrDefault(m => m.GetType() == parameters.LocalizationMethodType);
-                if (method == null)
-                    return result; // fail
-                parameters.LocalizationMethod = method;
-            }
-            
-            if (!await parameters.LocalizationMethod.Configure(new XRMap[] { map }))
-                return result; // fail
-            
-            map.LocalizationMethod = parameters.LocalizationMethod;
-            
-            // Map options
-            if (parameters.MapOptions != null)
-            {
-                map.MapOptions = parameters.MapOptions.ToList();
-            }
 
             // Optionally return here and leave out configuration, registering and loading
             if (unconfigured)
@@ -201,6 +196,48 @@ namespace Immersal.XR
                 if (parameters.MetadataGetResult == null)
                     return result; // fail
                 map.Configure(parameters.MetadataGetResult.Value);
+            }
+            
+            // Localization method
+            
+            // If null, try to find based on Type
+            if (parameters.LocalizationMethod == null)
+            {
+                ILocalizationMethod[] availableMethods = AvailableLocalizationMethods;
+                ILocalizationMethod method =
+                    availableMethods?.FirstOrDefault(m => m.GetType() == parameters.LocalizationMethodType);
+                if (method == null)
+                {
+                    ImmersalLogger.LogError("Requested LocalizationMethod is not available");
+                    return result; // fail
+                }
+                    
+                parameters.LocalizationMethod = method;
+            }
+
+            // Try to configure the LocalizationMethod
+            DefaultLocalizerConfiguration config = new DefaultLocalizerConfiguration
+            {
+                ConfigurationsToAdd = new Dictionary<ILocalizationMethod, XRMap[]>
+                {
+                    { parameters.LocalizationMethod, new XRMap[] { map } }
+                }
+            };
+            ILocalizerConfigurationResult r = await ImmersalSDK.Instance.Localizer.ConfigureLocalizer(config);
+            
+            //if (!await parameters.LocalizationMethod.Configure(new XRMap[] { map }))
+            if (!r.Success)
+            {
+                ImmersalLogger.LogError("Could not configure requested LocalizationMethod");
+                return result; // fail
+            }
+            
+            map.LocalizationMethod = parameters.LocalizationMethod;
+            
+            // Map options
+            if (parameters.MapOptions != null)
+            {
+                map.MapOptions = parameters.MapOptions.ToList();
             }
 
             // Register and load
@@ -269,12 +306,26 @@ namespace Immersal.XR
             m_MapEntries.Add(map.mapId, me);
         }
         
-        public static void RemoveMap(int mapId, bool destroyObjects = false)
+        public static void RemoveMap(int mapId, bool removeFromLocalizer = true, bool destroyObjects = false)
         {
             if (TryGetMapEntry(mapId, out MapEntry entry))
             {
-                // free & remove mapping
+                // Free & remove mapping (if it's loaded)
                 Immersal.Core.FreeMap(mapId);
+                
+                // Update localizer configuration
+                if (removeFromLocalizer)
+                {
+                    ILocalizationMethod method = entry.Map.LocalizationMethod;
+                    DefaultLocalizerConfiguration config = new DefaultLocalizerConfiguration
+                    {
+                        ConfigurationsToRemove = new Dictionary<ILocalizationMethod, XRMap[]>
+                        {
+                            { method, new XRMap[] { entry.Map } }
+                        }
+                    };
+                    ImmersalSDK.Instance.Localizer.ConfigureLocalizer(config);
+                }
                 
                 // Destroy
                 if (destroyObjects)
@@ -284,19 +335,48 @@ namespace Immersal.XR
                     if (map.Visualization != null)
                         map.RemoveVisualization();
                     
-                    GameObject.Destroy(map.gameObject);
+                    if (map.gameObject)
+                        GameObject.Destroy(map.gameObject);
+                    
+                    // Check if parent only had this one child
+                    // Note: the XRMap destruction above happens later when Unity wants it to
+                    Transform parent = entry.SceneParent.GetTransform();
+                    if (parent != null && parent.childCount == 1)
+                    {
+                        GameObject.Destroy(parent.gameObject);
+                    }
                 }
                 
-                // remove entry
+                // Remove entry
                 m_MapEntries.Remove(mapId);
             }
         }
 
-        public static void RemoveAllMaps(bool destroyObjects = false)
+        public static void RemoveAllMaps(bool removeFromLocalizer = true, bool destroyObjects = false)
         {
+            if (removeFromLocalizer)
+            {
+                // Remove all from localizer configuration with one call
+
+                Dictionary<ILocalizationMethod, XRMap[]> allMaps = m_MapEntries.Values
+                    .Select(entry => entry.Map)
+                    .GroupBy(map => map.LocalizationMethod)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.ToArray());
+
+                DefaultLocalizerConfiguration config = new DefaultLocalizerConfiguration
+                {
+                    ConfigurationsToRemove = allMaps
+                };
+                
+                ImmersalSDK.Instance.Localizer.ConfigureLocalizer(config);
+            }
+
             foreach (int id in m_MapEntries.Keys.ToList())
             {
-                RemoveMap(id, destroyObjects);
+                // removeFromLocalizer set to false since we already removed all
+                RemoveMap(id, false, destroyObjects);
             }
         }
 
@@ -304,7 +384,7 @@ namespace Immersal.XR
         {
             return m_MapEntries.TryGetValue(mapId, out mapEntry);
         }
-
+        
         #endregion
 
         #region Localization methods and map options

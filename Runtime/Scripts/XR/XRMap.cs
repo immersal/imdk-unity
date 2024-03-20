@@ -16,6 +16,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Immersal.REST;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
@@ -275,6 +278,7 @@ namespace Immersal.XR
             transform.localScale = scl;
         }
         
+
         public void ParseMapFiles()
         {
             int id = -1;
@@ -283,14 +287,16 @@ namespace Immersal.XR
                 SetIdAndName(id, mapFile.name.Substring(id.ToString().Length + 1), true);
             }
 
+#if UNITY_EDITOR
             if (Application.isEditor)
             {
                 if (mapFile != null)
                 {
                     try
                     {
-                        string destinationFolder = Path.Combine("Assets", "Map Data");
-                        string jsonFilePath = Path.Combine(destinationFolder, string.Format("{0}-metadata.json", mapFile.name));
+                        string mapFilePath = AssetDatabase.GetAssetPath(mapFile);
+                        string mapFileDir = Path.GetDirectoryName(mapFilePath);
+                        string jsonFilePath = Path.Combine(mapFileDir, string.Format("{0}-metadata.json", mapFile.name));
                         MetadataFile metadataFile = JsonUtility.FromJson<MetadataFile>(File.ReadAllText(jsonFilePath));
                         SetMetadata(metadataFile);
                     }
@@ -319,6 +325,7 @@ namespace Immersal.XR
                     }
                 }
             }
+#endif
         }
 
         public void SetMetadata(SDKMapMetadataGetResult result, bool setIdAndName = false)

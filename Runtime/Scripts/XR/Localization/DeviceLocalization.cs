@@ -40,7 +40,7 @@ namespace Immersal.XR
             new MapLoadingOption()
         };
 
-        public Task<bool> Configure(XRMap[] maps)
+        public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
         {
             // On device localization does not need configuration
             return Task.FromResult(true);
