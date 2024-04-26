@@ -20,6 +20,7 @@ using System.Threading.Tasks;
 using Immersal.XR;
 using Immersal.REST;
 using AOT;
+using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
 namespace Immersal
@@ -28,14 +29,11 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.0.1";
+		public static string sdkVersion = "2.0.2";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
-		public enum APIServer { DefaultServer, ChinaServer };
+		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		
-		[Header("Cloud configuration")]
-
-        [SerializeField]
-		public APIServer defaultServer = APIServer.DefaultServer;
+		public APIServer ImmersalServer = APIServer.DefaultServer;
 		
 		[Tooltip("SDK developer token")]
 		public string developerToken;
@@ -113,25 +111,13 @@ namespace Immersal
 	        }
         }
 
-        public string defaultServerURL
-        {
-	        get {
-		        return ServerList[(int)defaultServer];
-	        }
-        }
-
         public string localizationServer
         {
-	        get {
-		        if (m_LocalizationServer != null)
-		        {
-			        return m_LocalizationServer;
-		        }
-		        return defaultServerURL;
-	        }
+	        get => ImmersalServer == APIServer.CustomServer ? m_CustomServerUrl : ServerList[(int)ImmersalServer];
 	        set
 	        {
-		        m_LocalizationServer = value;
+		        ImmersalServer = APIServer.CustomServer;
+		        m_CustomServerUrl = value;
 	        }
         }
         
@@ -168,7 +154,7 @@ namespace Immersal
         public UnityEvent OnInitializationComplete;
         public UnityEvent OnReset;
 
-        private string m_LocalizationServer = ServerList[0];
+        private string m_CustomServerUrl = "";
         private int m_LicenseLevel = -1;
         
         private bool m_IsReady = false;
@@ -318,17 +304,13 @@ namespace Immersal
 
 	        foreach (XRMap map in maps)
 	        {
-		        Transform parentTransform = map.gameObject.transform.parent;
-		        if (parentTransform != null)
+		        ISceneUpdateable sceneUpdateable = map.gameObject.transform.GetComponentInParent<ISceneUpdateable>(true);
+		        if (sceneUpdateable != null)
 		        {
-			        ISceneUpdateable sceneUpdateable = parentTransform.GetComponent<ISceneUpdateable>();
-			        if (sceneUpdateable != null)
-			        {
-				        ImmersalLogger.Log($"Starting RegisterAndLoad for map {map.mapId}");
-				        // map registering might initiate downloads so we should not await here
-				        Task t = MapManager.RegisterAndLoadMap(map, sceneUpdateable);
-				        mapRegisterTasks.Add(t);
-			        }
+			        ImmersalLogger.Log($"Starting RegisterAndLoad for map {map.mapId}");
+			        // map registering might initiate downloads so we should not await here
+			        Task t = MapManager.RegisterAndLoadMap(map, sceneUpdateable);
+			        mapRegisterTasks.Add(t);
 		        }
 	        }
 	        // wait for all register tasks to finish	        

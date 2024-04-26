@@ -321,6 +321,7 @@ namespace Immersal.REST
         public bool mapTrim = false;
         public int featureFilter = 0;
         public int compressionLevel = 0;
+        public bool constructDense = true;
 
         public override async Task<SDKConstructResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
@@ -336,6 +337,7 @@ namespace Immersal.REST
             r.mapTrim = this.mapTrim;
             r.featureFilter = this.featureFilter;
             r.compressionLevel = this.compressionLevel;
+            r.dense = constructDense ? 1 : 0;
 
             SDKConstructResult result = await ImmersalHttp.Request<SDKConstructRequest, SDKConstructResult>(r, this.Progress, cancellationToken);
             if (result.error == "none")

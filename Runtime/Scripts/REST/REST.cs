@@ -105,6 +105,7 @@ namespace Immersal.REST
         public bool mapTrim;
         public int featureFilter;
         public int compressionLevel;
+        public int dense;
     }
 
     [Serializable]

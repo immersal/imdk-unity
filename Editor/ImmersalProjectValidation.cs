@@ -312,6 +312,7 @@ namespace Immersal
             BuildTarget.StandaloneWindows => BuildTargetGroup.Standalone,
             BuildTarget.StandaloneWindows64 => BuildTargetGroup.Standalone,
             BuildTarget.StandaloneLinux64 => BuildTargetGroup.Standalone,
+            BuildTarget.WSAPlayer => BuildTargetGroup.WSA,
             _ => BuildTargetGroup.Unknown
         };
         
@@ -438,7 +439,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "ARKit XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTarget != BuildTarget.iOS || IsPluginLoaderEnabled("ARKitLoader"),
+                Check = () => ActiveBuildTarget != BuildTarget.iOS || IsPluginLoaderEnabled("AR Kit Loader") ,
                 Fix = () =>
                 {
                     EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
@@ -451,7 +452,7 @@ namespace Immersal
             new ProjectIssue()
             {
                 Message = () => "ARCore XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("ARCoreLoader"),
+                Check = () => ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("AR Core Loader"),
                 Fix = () =>
                 {
                     EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
@@ -502,7 +503,9 @@ namespace Immersal
                 return false;
                 
             XRManagerSettings managerSettings = generalSettings.AssignedSettings;
-            return managerSettings != null && managerSettings.activeLoaders.Any(loader => loader.name == loaderName);
+
+            string loaderNameNoWhitespace = loaderName.Replace(" ", "");
+            return managerSettings != null && managerSettings.activeLoaders.Any(loader => (loader.name == loaderName || loader.name == loaderNameNoWhitespace));
         }
         
         private static void SetupRenderPipeline()

@@ -10,6 +10,7 @@ Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
 #if UNITY_EDITOR
+using System;
 using System.Collections;
 using Immersal.XR;
 using Unity.EditorCoroutines.Editor;
@@ -26,10 +27,42 @@ namespace Immersal
     [CustomEditor(typeof(ImmersalSDK))]
     public class ImmersalSDKEditor : Editor, IPreprocessBuildWithReport
     {
+        private SerializedProperty immersalServer;
+        private SerializedProperty immersalServerUrl;
+
+        private void OnEnable()
+        {
+            immersalServer = serializedObject.FindProperty("ImmersalServer");
+            immersalServerUrl = serializedObject.FindProperty("m_CustomServerUrl");
+        }
+
         public override void OnInspectorGUI()
         {
+            serializedObject.Update();
+            ImmersalSDK obj = (ImmersalSDK)target;
+            
             EditorGUILayout.HelpBox("Immersal SDK v" + ImmersalSDK.sdkVersion, MessageType.Info);
-            base.OnInspectorGUI();
+            
+            EditorGUILayout.LabelField("Cloud configuration", EditorStyles.boldLabel);
+            EditorGUI.BeginChangeCheck();
+            ImmersalSDK.APIServer serverSelection = (ImmersalSDK.APIServer)EditorGUILayout.EnumPopup("Immersal Server", (ImmersalSDK.APIServer)immersalServer.enumValueIndex);
+            if (EditorGUI.EndChangeCheck())
+            {
+                immersalServer.enumValueIndex = (int)serverSelection;
+            }
+
+            if (serverSelection == ImmersalSDK.APIServer.CustomServer)
+            {
+                EditorGUI.BeginChangeCheck();
+                string url = EditorGUILayout.TextField("Server URL", obj.localizationServer);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    obj.localizationServer = url;
+                }
+            }
+            
+            DrawPropertiesExcluding(serializedObject, "m_Script", "ImmersalServer");
+            serializedObject.ApplyModifiedProperties();
         }
         
         // Preprocess builds

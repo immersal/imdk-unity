@@ -226,119 +226,113 @@ namespace Immersal.XR
             // Map unconfigured
             else
             {
-                // Check parent implements ISceneUpdateable
-                sceneParentObj = obj.transform.parent.gameObject;
-                    
-                if (sceneParentObj != null)
+                // Check that a parent implements ISceneUpdateable
+                ISceneUpdateable sceneUpdateable = obj.transform.GetComponentInParent<ISceneUpdateable>(true);
+                
+                if (sceneUpdateable != null)
                 {
-                    sceneParent = sceneParentObj.GetComponents<MonoBehaviour>()
-                        .FirstOrDefault(comp => comp is ISceneUpdateable) as ISceneUpdateable;
+                    // Configuration instructions and options
                     
-                    if (sceneParent != null)
+                    Color oldColor = GUI.backgroundColor;
+                    GUI.backgroundColor = new Color(1f, 0.5f, 0.6f);
+                    EditorGUILayout.HelpBox("Map has not been configured! Add or download map data below.", MessageType.Warning);
+                    GUI.backgroundColor = oldColor;
+                    
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField("Local map file", bigLabel);
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField("Drag and drop your map file (.bytes) here or use the selector to find one.", EditorStyles.wordWrappedLabel);
+                    
+                    // Mapfile option
+                    
+                    EditorGUILayout.PropertyField(mapFileProperty);
+                    
+                    //currentMapFile = obj.mapFile;
+                    TextAsset mapFile = mapFileProperty.objectReferenceValue as TextAsset;
+                    if (mapFile != null)
                     {
-                        // Configuration instructions and options
-                        
-                        Color oldColor = GUI.backgroundColor;
-                        GUI.backgroundColor = new Color(1f, 0.5f, 0.6f);
-                        EditorGUILayout.HelpBox("Map has not been configured! Add or download map data below.", MessageType.Warning);
-                        GUI.backgroundColor = oldColor;
-                        
-                        EditorGUILayout.Space();
-                        EditorGUILayout.LabelField("Local map file", bigLabel);
-                        EditorGUILayout.Space();
-                        EditorGUILayout.LabelField("Drag and drop your map file (.bytes) here or use the selector to find one.", EditorStyles.wordWrappedLabel);
-                        
-                        // Mapfile option
-                        
-                        EditorGUILayout.PropertyField(mapFileProperty);
-                        
-                        //currentMapFile = obj.mapFile;
-                        TextAsset mapFile = mapFileProperty.objectReferenceValue as TextAsset;
-                        if (mapFile != null)
+                        string bytesPath = AssetDatabase.GetAssetPath(mapFile);
+                        if (bytesPath.EndsWith(".bytes"))
                         {
-                            string bytesPath = AssetDatabase.GetAssetPath(mapFile);
-                            if (bytesPath.EndsWith(".bytes"))
+                            if (TrySetLocalizationMethod(obj, typeof(DeviceLocalization)))
                             {
-                                if (TrySetLocalizationMethod(obj, typeof(DeviceLocalization)))
-                                {
-                                    obj.Configure(mapFile);
-                                }
-                            }
-                            else
-                            {
-                                ImmersalLogger.Log($"{AssetDatabase.GetAssetPath(mapFile)} is not a valid map file");
-                                obj.mapFile = null;
+                                obj.Configure(mapFile);
                             }
                         }
-                        
-                        // Download options
-                        
-                        EditorGUILayout.Space(12f);
-                        EditorGUILayout.LabelField("OR", centeredBoldLabel, GUILayout.ExpandWidth(true));
-                        EditorGUILayout.Space(12f);
-                        EditorGUILayout.LabelField("Download from cloud", bigLabel);
-                        EditorGUILayout.Space();
-                        EditorGUILayout.LabelField("Input your map id and select which data to download. You can configure the save path in the ImmersalSDK configuration.", EditorStyles.wordWrappedLabel);
-                        
-                        userEnteredMapId = EditorGUILayout.IntField("Map id: ", userEnteredMapId);
-                        EditorGUILayout.Space();
-                        
-                        // Section for selecting data types to download
-                        DownloadSelectionSection();
-                        
-                        // Download
-                        
-                        if (GUILayout.Button("Download"))
+                        else
                         {
-                            // metadata is always downloaded
-                            EditorCoroutineUtility.StartCoroutine(
-                                MapManager.DownloadMapMetadata(userEnteredMapId, metadata =>
+                            ImmersalLogger.Log($"{AssetDatabase.GetAssetPath(mapFile)} is not a valid map file");
+                            obj.mapFile = null;
+                        }
+                    }
+                    
+                    // Download options
+                    
+                    EditorGUILayout.Space(12f);
+                    EditorGUILayout.LabelField("OR", centeredBoldLabel, GUILayout.ExpandWidth(true));
+                    EditorGUILayout.Space(12f);
+                    EditorGUILayout.LabelField("Download from cloud", bigLabel);
+                    EditorGUILayout.Space();
+                    EditorGUILayout.LabelField("Input your map id and select which data to download. You can configure the save path in the ImmersalSDK configuration.", EditorStyles.wordWrappedLabel);
+                    
+                    userEnteredMapId = EditorGUILayout.IntField("Map id: ", userEnteredMapId);
+                    EditorGUILayout.Space();
+                    
+                    // Section for selecting data types to download
+                    DownloadSelectionSection();
+                    
+                    // Download
+                    
+                    if (GUILayout.Button("Download"))
+                    {
+                        // metadata is always downloaded
+                        EditorCoroutineUtility.StartCoroutine(
+                            MapManager.DownloadMapMetadata(userEnteredMapId, metadata =>
+                            {
+                                // apply meta
+                                obj.SetMetadata(metadata, true);
+                                
+                                // mapfile
+                                if (downloadSelections[1])
                                 {
-                                    // apply meta
-                                    obj.SetMetadata(metadata, true);
-                                    
-                                    // mapfile
-                                    if (downloadSelections[1])
+                                    EditorCoroutineUtility.StartCoroutine(MapManager.DownloadMapFile(
+                                        obj.mapId, obj.mapName, (result, mapFileAsset) =>
                                     {
-                                        EditorCoroutineUtility.StartCoroutine(MapManager.DownloadMapFile(
-                                            obj.mapId, obj.mapName, (result, mapFileAsset) =>
+                                        if (TrySetLocalizationMethod(obj, typeof(DeviceLocalization)))
                                         {
-                                            if (TrySetLocalizationMethod(obj, typeof(DeviceLocalization)))
-                                            {
-                                                // apply map file and process
-                                                obj.Configure(mapFileAsset);
-                                            }
-                                        }), this);
-                                    }
-                                    else
-                                    {
-                                        if (TrySetLocalizationMethod(obj, typeof(ServerLocalization)))
-                                        {
-                                            obj.Configure();
+                                            // apply map file and process
+                                            obj.Configure(mapFileAsset);
                                         }
-                                    }
-
-                                    // vis
-                                    if (downloadSelections[2])
+                                    }), this);
+                                }
+                                else
+                                {
+                                    if (TrySetLocalizationMethod(obj, typeof(ServerLocalization)))
                                     {
-                                        EditorCoroutineUtility.StartCoroutine(MapManager.DownloadSparseFile(
-                                            obj.mapId, obj.mapName, (result, path) =>
-                                        {
-                                            // apply bytes and process
-                                            obj.CreateVisualization();
-                                            obj.Visualization.LoadPly(path);
-                                            UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
-                                        
-                                        }), this);
+                                        obj.Configure();
                                     }
-                                }), this);
-                        }
+                                }
+
+                                // vis
+                                if (downloadSelections[2])
+                                {
+                                    EditorCoroutineUtility.StartCoroutine(MapManager.DownloadSparseFile(
+                                        obj.mapId, obj.mapName, (result, path) =>
+                                    {
+                                        // apply bytes and process
+                                        obj.CreateVisualization();
+                                        obj.Visualization.LoadPly(path);
+                                        UnityEditorInternal.InternalEditorUtility.RepaintAllViews();
+                                    
+                                    }), this);
+                                }
+                            }), this);
                     }
-                    // Invalid parent
-                    else
-                    {
-                        EditorGUILayout.HelpBox("Scene parent does not implement ISceneUpdateable.", MessageType.Error, true);
-                    }
+                }
+                // Invalid parent
+                else
+                {
+                    EditorGUILayout.HelpBox("Scene parent does not implement ISceneUpdateable.", MessageType.Error, true);
                 }
             }
             

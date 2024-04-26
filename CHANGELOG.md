@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.0.2] - 2024-04-26
+
+### Added
+- Custom server option in ImmersalSDK object
+- Dense as optional parameter in map construction REST API (defaults to true)
+
+### Changed
+- Plugins updated to 2.0.2
+
+### Fixed
+- Project validation not recognizing old format XR Plugin names
+- Server selection in ImmersalSDK object not working as expected
+- XRMaps not working when ISceneUpdateable is not a direct parent
+- Unity stuck on "domain reloading" on Windows due to plugin issues
+
 ## [2.0.1] - 2024-03-20
 
 ### Added

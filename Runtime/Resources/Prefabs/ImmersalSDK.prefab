@@ -432,6 +432,9 @@ MonoBehaviour:
   OnSuccessfulLocalizations:
     m_PersistentCalls:
       m_Calls: []
+  OnLocalizationResult:
+    m_PersistentCalls:
+      m_Calls: []
   OnFailedLocalizations:
     m_PersistentCalls:
       m_Calls: []
