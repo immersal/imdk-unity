@@ -14,16 +14,32 @@ using UnityEngine;
 
 namespace Immersal.XR
 {
-	public class PoseFilter : MonoBehaviour, IDataProcessor<Matrix4x4>
-	{
-		public Vector3 Position { get; private set; }
-		public Quaternion Rotation { get; private set; }
-
-		private static uint m_HistorySize = 8;
+    public class PoseFilter : MonoBehaviour, IDataProcessor<SceneUpdateData>
+    {
+	    [Header("Experimental options")]
+	    [SerializeField] private bool m_UseConfidence = false;
+        [SerializeField] private float m_ConfidenceMax = 20f;
+        [SerializeField] private float m_ConfidenceImpact = 0.5f;
+        
+        // processing should be done in map space,
+        // option left here for testing
+        private const bool m_ProcessInMapSpace = true;
+        
+        private const int m_HistorySize = 8;
+        
 		private Vector3[] m_P = new Vector3[m_HistorySize];
 		private Vector3[] m_X = new Vector3[m_HistorySize];
 		private Vector3[] m_Z = new Vector3[m_HistorySize];
+		private float[] m_C = new float[m_HistorySize];
+		
+		private Vector3[] m_tP = new Vector3[m_HistorySize];
+		private Vector3[] m_tX = new Vector3[m_HistorySize];
+		private Vector3[] m_tZ = new Vector3[m_HistorySize];
+		
 		private uint m_Samples = 0;
+		
+		private bool m_HasProcessedData = false;
+		private SceneUpdateData m_CurrentData;
 		
 		public void InvalidateHistory()
 		{
@@ -35,71 +51,137 @@ namespace Immersal.XR
 			return m_Samples > 1;
 		}
 
-		public void ProcessPose(Matrix4x4 r)
+		private void ProcessData(SceneUpdateData data)
 		{
-			uint idx = m_Samples% m_HistorySize;
-			m_P[idx] = r.GetColumn(3);
-			m_X[idx] = r.GetColumn(0);
-			m_Z[idx] = r.GetColumn(2);
+			Matrix4x4 pose = data.Pose;
+			if (m_ProcessInMapSpace)
+				pose = data.Pose.inverse * data.TrackerSpace;
+			float confidence = data.LocalizeInfo.confidence;
+			int idx = (int)(m_Samples % m_HistorySize);
+			
+			m_P[idx] = pose.GetColumn(3);
+			m_X[idx] = pose.GetColumn(0);
+			m_Z[idx] = pose.GetColumn(2);
+
+			float c = 1f;
+			if (m_UseConfidence)
+			{
+				float impact = Mathf.Clamp01(m_ConfidenceImpact);
+				float cc = Mathf.Clamp01(confidence / m_ConfidenceMax);
+				c = 1f - impact + (cc * impact * 2f);
+			}
+			m_C[idx] = c;
 			m_Samples++;
 			uint n = m_Samples > m_HistorySize ? m_HistorySize : m_Samples;
-			Position = FilterAVT(m_P, n);
-			Vector3 x = Vector3.Normalize(FilterAVT(m_X, n));
-			Vector3 z = Vector3.Normalize(FilterAVT(m_Z, n));
+			
+			Vector3 position = Filter(m_P, n, m_C, idx);
+			Vector3 x = Vector3.Normalize(Filter(m_X, n, m_C, idx));
+			Vector3 z = Vector3.Normalize(Filter(m_Z, n, m_C, idx));
 			Vector3 up = Vector3.Normalize(Vector3.Cross(z, x));
-			Rotation = Quaternion.LookRotation(z, up);
+			Quaternion rotation = Quaternion.LookRotation(z, up);
+
+			if (m_ProcessInMapSpace)
+			{
+				Matrix4x4 filteredPose = Matrix4x4.TRS(position, rotation, Vector3.one);
+				
+				// Filter TrackerSpace
+				m_tP[idx] = data.TrackerSpace.GetColumn(3);
+				m_tX[idx] = data.TrackerSpace.GetColumn(0);
+				m_tZ[idx] = data.TrackerSpace.GetColumn(2);
+			
+				Vector3 tpos = Filter(m_tP, n, m_C, idx);
+				Vector3 tx = Vector3.Normalize(Filter(m_tX, n, m_C, idx));
+				Vector3 tz = Vector3.Normalize(Filter(m_tZ, n, m_C, idx));
+				Vector3 tup = Vector3.Normalize(Vector3.Cross(tz, tx));
+				Quaternion trot = Quaternion.LookRotation(tz, tup);
+				Matrix4x4 filteredTrackerSpace = Matrix4x4.TRS(tpos, trot, Vector3.one);
+
+				data.Pose = filteredTrackerSpace * filteredPose.inverse;
+			}
+			else
+			{
+				data.Pose = Matrix4x4.TRS(position, rotation, Vector3.one);
+			}
+	
+			m_CurrentData = data;
+			m_HasProcessedData = true;
 		}
 
-		private Vector3 FilterAVT(Vector3[] buf, uint n)
+		private Vector3 Filter(Vector3[] buf, uint n, float[] confidence, int idx)
+		{
+			return FilterAVT(buf, n, confidence, idx);
+		}
+
+		private Vector3 FilterAVT(Vector3[] buf, uint n, float[] confidence, int idx)
 		{
 			Vector3 mean = Vector3.zero;
+			float totalWeight = 0f;
+
+			// calculate weighted mean
 			for (uint i = 0; i < n; i++)
-				mean += buf[i];
-			mean /= (float)n;
+			{
+				mean += buf[i] * confidence[i];
+				totalWeight += confidence[i];
+			}
+			mean /= totalWeight;
+			
+			// return mean when sample count is low
 			if (n <= 2)
 				return mean;
+			
+			// calculate standard deviation
 			float s = 0;
 			for (uint i = 0; i < n; i++)
 			{
-				s += Vector3.SqrMagnitude(buf[i] - mean);
+				Vector3 value = buf[i] * confidence[i];
+				s += Vector3.SqrMagnitude(value - mean);
 			}
-			s /= (float)n;
+			s /= totalWeight;
+			
+			// calculate a mean of samples with error less than or equal to st dev
 			Vector3 avg = Vector3.zero;
-			int ib = 0;
+			totalWeight = 0f;
 			for (uint i = 0; i < n; i++)
 			{
-				float d = Vector3.SqrMagnitude(buf[i] - mean);
+				// for each sample, get error
+				Vector3 value = buf[i] * confidence[i];
+				float d = Vector3.SqrMagnitude(value - mean);
+				
+				// if error <= st dev, count it in
 				if (d <= s)
 				{
-					avg += buf[i];
-					ib++;
+					avg += buf[i] * confidence[i];
+					totalWeight += confidence[i];
 				}
 			}
-			if (ib > 0)
+			if (totalWeight > 0)
 			{
-				avg /= (float)ib;
+				avg /= totalWeight;
 				return avg;
 			}
 			return mean;
 		}
-
-		public Task<Matrix4x4> ProcessData(Matrix4x4 data, DataProcessorTrigger trigger)
+		
+		public Task<SceneUpdateData> ProcessData(SceneUpdateData data, DataProcessorTrigger trigger)
 		{
 			// skip on updates with no new data
 			if (trigger == DataProcessorTrigger.Update)
+			{
+				if (m_HasProcessedData)
+					return Task.FromResult(m_CurrentData);
 				return Task.FromResult(data);
+			}
 			
-			ProcessPose(data);
+			ProcessData(data);
 
-			return Task.FromResult(Matrix4x4.TRS(Position, Rotation, Vector3.one));
+			return Task.FromResult(m_CurrentData);
 		}
 
 		public Task ResetProcessor()
 		{
-			Position = Vector3.zero;
-			Rotation = Quaternion.identity;
 			InvalidateHistory();
 			return Task.CompletedTask;
 		}
-	}
+    }
+
 }

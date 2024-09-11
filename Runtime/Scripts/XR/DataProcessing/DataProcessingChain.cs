@@ -9,15 +9,16 @@ third-parties for commercial purposes without written permission of Immersal Ltd
 Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Immersal.XR
 {
-    public class DataProcessingChain<T>
+    public class DataProcessingChain<T> : IDataProcessingChain<T> where T : class
     {
         private IDataProcessor<T>[] m_DataProcessors;
-        private T m_CurrentDataInChain;
+        private T m_CurrentDataInChain = null;
         private bool m_IsProcessing = false;
 
         public DataProcessingChain(IDataProcessor<T>[] dataProcessors)
@@ -30,14 +31,22 @@ namespace Immersal.XR
             await ProcessChain(inputData, DataProcessorTrigger.NewData);
         }
 
-        public async void UpdateChain()
+        public async Task UpdateChain()
         {
+            if (m_CurrentDataInChain == null)
+            {
+                return;
+            }
+            
             await ProcessChain(m_CurrentDataInChain, DataProcessorTrigger.Update);
         }
 
         private async Task ProcessChain(T inputData, DataProcessorTrigger trigger)
         {
             if (m_IsProcessing)
+                return;
+
+            if (inputData == null)
                 return;
 
             m_IsProcessing = true;

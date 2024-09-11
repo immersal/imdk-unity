@@ -22,12 +22,12 @@ namespace Immersal.XR
     {
         [SerializeField]
         private bool m_ProcessPoses = false;
-
-        [SerializeField] [Interface(typeof(IDataProcessor<Matrix4x4>))]
+        
+        [SerializeField] [Interface(typeof(IDataProcessor<SceneUpdateData>))]
         private Object[] m_DataProcessors;
 
-        public IDataProcessor<Matrix4x4>[] PoseDataProcessors =>
-            m_DataProcessors.OfType<IDataProcessor<Matrix4x4>>().ToArray();
+        public IDataProcessor<SceneUpdateData>[] SceneDataProcessors =>
+            m_DataProcessors.OfType<IDataProcessor<SceneUpdateData>>().ToArray();
         
         public bool ProcessPoses
         {
@@ -38,55 +38,63 @@ namespace Immersal.XR
         public Matrix4x4 InitialPose => m_InitialPose;
 
         private Transform m_TransformToUpdate;
-        private DataProcessingChain<Matrix4x4> m_PoseProcessingChain;
+        private IDataProcessingChain<SceneUpdateData> m_DataProcessingChain;
 
         private Matrix4x4 m_InitialPose = Matrix4x4.identity;
-        private Matrix4x4 m_CurrentPose;
+        private SceneUpdateData m_CurrentData;
 
         private void Awake()
         {
             m_TransformToUpdate = transform;
             m_InitialPose = Matrix4x4.TRS(m_TransformToUpdate.position, m_TransformToUpdate.rotation, Vector3.one);
-            m_CurrentPose = Matrix4x4.TRS(m_TransformToUpdate.localPosition, m_TransformToUpdate.localRotation, m_TransformToUpdate.localScale);
+            m_CurrentData = null;
         }
-
+        
         private void Start()
         {
             if (m_DataProcessors != null)
-                m_PoseProcessingChain = new DataProcessingChain<Matrix4x4>(PoseDataProcessors);
+                m_DataProcessingChain = new DataProcessingChain<SceneUpdateData>(SceneDataProcessors);
         }
-
-        private void Update()
+        
+        private async void Update()
         {
-            if (m_ProcessPoses && m_PoseProcessingChain != null)
+            if (m_ProcessPoses && m_DataProcessingChain != null)
             {
-                m_PoseProcessingChain.UpdateChain();
-                m_CurrentPose = m_PoseProcessingChain.GetCurrentData();
-                m_TransformToUpdate.SetPositionAndRotation(m_CurrentPose.GetColumn(3), m_CurrentPose.rotation);
+                await m_DataProcessingChain.UpdateChain();
+                SceneUpdateData result = m_DataProcessingChain.GetCurrentData();
+                m_CurrentData = result;
+                UpdateSpace(m_CurrentData);
             }
         }
-
-        public async Task SceneUpdate(Matrix4x4 poseMatrix)
+        
+        public async Task SceneUpdate(SceneUpdateData data)
         {
-            if (m_TransformToUpdate == null)
+            if (!m_TransformToUpdate)
                 return;
             
-            if (m_ProcessPoses && m_PoseProcessingChain != null)
+            if (m_ProcessPoses && m_DataProcessingChain != null)
             {
-                await m_PoseProcessingChain.ProcessNewData(poseMatrix);
+                await m_DataProcessingChain.ProcessNewData(data);
             }
             else
             {
-                m_CurrentPose = poseMatrix;
-                m_TransformToUpdate.SetPositionAndRotation(m_CurrentPose.GetColumn(3), m_CurrentPose.rotation);
+                m_CurrentData = data;
+                UpdateSpace(m_CurrentData);
             }
+        }
+        
+        private void UpdateSpace(SceneUpdateData data)
+        {
+            if (data == null || data.Ignore || !data.Pose.ValidTRS()) return;
+            Matrix4x4 pose = data.Pose;
+            m_TransformToUpdate.SetPositionAndRotation(pose.GetPosition(), pose.rotation);
         }
         
         public Transform GetTransform()
         {
             return transform;
         }
-
+        
         public void TriggerResetScene()
         {
             ResetScene();
@@ -94,9 +102,9 @@ namespace Immersal.XR
 
         public async Task ResetScene()
         {
-            if (m_ProcessPoses && m_PoseProcessingChain != null)
+            if (m_ProcessPoses && m_DataProcessingChain != null)
             {
-                await m_PoseProcessingChain.ResetProcessors();
+                await m_DataProcessingChain.ResetProcessors();
             }
         }
     }

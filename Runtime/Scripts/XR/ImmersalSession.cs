@@ -171,16 +171,7 @@ namespace Immersal.XR
 				m_LastUpdateTime = curTime;
 				m_RunningTasks = true;
 				m_CTS = new CancellationTokenSource();
-
-				try
-				{
-					m_CurrentRunningTask = RunTasksAsync(m_ProcessData, m_CTS.Token);
-				}
-				catch (Exception e)
-				{
-					ImmersalLogger.LogError(e.Message);
-					m_SessionIsRunning = false;
-				}
+				m_CurrentRunningTask = RunTasksAsync(m_ProcessData, m_CTS.Token);
 			}
 		}
 
@@ -250,8 +241,8 @@ namespace Immersal.XR
 			}
 			catch (Exception e)
 			{
-				ImmersalLogger.LogError(e.Message);
-				throw;
+				ImmersalLogger.LogError($"Session task error: {e.Message}. Stopping session.");
+				m_SessionIsRunning = false;
 			}
 			finally
 			{
@@ -262,7 +253,8 @@ namespace Immersal.XR
 		// Convenience method
 		public async Task LocalizeOnce()
 		{
-			await m_CurrentRunningTask;
+			if (m_CurrentRunningTask != null)
+				await m_CurrentRunningTask;
 			
 			m_LastUpdateTime = Time.unscaledTime;
 			m_RunningTasks = true;
@@ -348,7 +340,7 @@ namespace Immersal.XR
 		}
 	}
 	
-	public struct SessionData
+	public class SessionData
 	{
 		public MapEntry Entry;
 		public IPlatformUpdateResult PlatformResult;

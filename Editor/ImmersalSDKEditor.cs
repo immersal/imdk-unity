@@ -51,17 +51,12 @@ namespace Immersal
                 immersalServer.enumValueIndex = (int)serverSelection;
             }
 
-            if (serverSelection == ImmersalSDK.APIServer.CustomServer)
+            if (serverSelection == ImmersalSDK.APIServer.CustomServer && immersalServerUrl != null)
             {
-                EditorGUI.BeginChangeCheck();
-                string url = EditorGUILayout.TextField("Server URL", obj.localizationServer);
-                if (EditorGUI.EndChangeCheck())
-                {
-                    obj.localizationServer = url;
-                }
+                EditorGUILayout.PropertyField(immersalServerUrl);
             }
             
-            DrawPropertiesExcluding(serializedObject, "m_Script", "ImmersalServer");
+            DrawPropertiesExcluding(serializedObject, "m_Script", "ImmersalServer", "m_CustomServerUrl");
             serializedObject.ApplyModifiedProperties();
         }
         

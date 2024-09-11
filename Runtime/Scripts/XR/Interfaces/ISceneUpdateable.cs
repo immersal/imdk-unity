@@ -16,7 +16,7 @@ namespace Immersal.XR
 {
     public interface ISceneUpdateable
     {
-        Task SceneUpdate(Matrix4x4 poseMatrix);
+        Task SceneUpdate(SceneUpdateData data);
         Transform GetTransform();
         Task ResetScene();
     }

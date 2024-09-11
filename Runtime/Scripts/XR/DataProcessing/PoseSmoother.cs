@@ -9,61 +9,127 @@ third-parties for commercial purposes without written permission of Immersal Ltd
 Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
+using System;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace Immersal.XR
 {
-    public class PoseSmoother : MonoBehaviour, IDataProcessor<Matrix4x4>
+    public enum SmoothingMode
     {
-        [SerializeField]
+        SlowApproach,
+        Linear,
+        Sinusoidal,
+        Cubic
+    }
+    
+    public class NewPoseSmoother : MonoBehaviour, IDataProcessor<SceneUpdateData>
+    {
+        [Header("Smoothing")]
+        [SerializeField, Tooltip("Classic slow approach method or linear, sinusoidal or cubic timing function.")]
+        private SmoothingMode m_Mode = SmoothingMode.SlowApproach;
+        
+        [SerializeField, Tooltip("Smoothing factor for the slow approach mode.")]
+        private float m_SlowApproachSmoothing = 0.025f;
+        
+        [SerializeField, Tooltip("Interpolation time for linear, sinusoidal and cubic modes.")]
+        private float m_SmoothTimeSpan = 0.5f;
+        
+        [Header("Warping")]
+        [SerializeField, Tooltip("Enable to warp to target instantly when distance or angle gets too large.")]
         private bool m_WarpOutsideThreshold = true;
         
-        [SerializeField]
-        private float m_WarpThresholdDistSq = 5.0f * 5.0f;
+        [SerializeField, Tooltip("Warp if distance is larger than this.")]
+        private float m_WarpThresholdDist = 5.0f;
 
-        [SerializeField]
-        private float m_WarpThresholdCosAngle = Mathf.Cos(20.0f * Mathf.PI / 180.0f);
+        [SerializeField, Tooltip("Warp if angle is larger than this.")]
+        private float m_WarpThresholdAngle = 20.0f;
 
         private Vector3 targetPosition = Vector3.zero;
         private Quaternion targetRotation = Quaternion.identity;
+        private Vector3 startPosition = Vector3.zero;
+        private Quaternion startRotation = Quaternion.identity;
         private Vector3 currentPosition = Vector3.zero;
         private Quaternion currentRotation = Quaternion.identity;
 
-        void Update()
+        private float m_WarpThresholdDistSq;
+        private float m_WarpThresholdCosAngle;
+        private float elapsedTime = 0f;
+        private bool m_HasUpdated = false;
+
+        private void Awake()
+        {
+            m_WarpThresholdDistSq = m_WarpThresholdDist * m_WarpThresholdDist;
+            m_WarpThresholdCosAngle = Mathf.Cos(m_WarpThresholdAngle * Mathf.PI / 180f);
+        }
+
+        private void Update()
+        {
+            UpdatePose();
+        }
+
+        private void UpdatePose()
         {
             float distSq = (currentPosition - targetPosition).sqrMagnitude;
             float cosAngle = Quaternion.Dot(currentRotation, targetRotation);
+
+            bool warpCondition = m_WarpOutsideThreshold &&
+                                 (distSq > m_WarpThresholdDistSq || cosAngle < m_WarpThresholdCosAngle);
             
-            if (m_WarpOutsideThreshold && (distSq > m_WarpThresholdDistSq || cosAngle < m_WarpThresholdCosAngle))
+            if (!m_HasUpdated || warpCondition)
             {
                 currentPosition = targetPosition;
                 currentRotation = targetRotation;
             }
             else
             {
-                float smoothing = 0.025f;
-                float steps = Time.deltaTime / (1.0f / 60.0f);
-                if (steps < 1.0f)
-                    steps = 1.0f;
-                else if (steps > 6.0f)
-                    steps = 6.0f;
-                float alpha = 1.0f - Mathf.Pow(1.0f - smoothing, steps);
-
-                currentPosition = Vector3.Lerp(currentPosition, targetPosition, alpha);
-                currentRotation = Quaternion.Slerp(currentRotation, targetRotation, alpha);
+                float alpha = 0f;
+                elapsedTime += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsedTime / m_SmoothTimeSpan);
+                
+                switch (m_Mode)
+                {
+                    case SmoothingMode.SlowApproach:
+                        float s = Time.deltaTime / (1.0f / 60.0f);
+                        float steps = Mathf.Min(Mathf.Max(s, 1f), 6f);
+                        alpha = 1.0f - Mathf.Pow(1.0f - m_SlowApproachSmoothing, steps);
+                        startPosition = currentPosition;
+                        startRotation = currentRotation;
+                        break;
+                    case SmoothingMode.Linear:
+                        alpha = t;
+                        break;
+                    case SmoothingMode.Sinusoidal:
+                        alpha = Mathf.Sin(t * Mathf.PI * 0.5f);
+                        break;
+                    case SmoothingMode.Cubic:
+                        alpha = t < 0.5f ? 4 * t * t * t : 1 - Mathf.Pow(-2 * t + 2, 3) / 2;
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                
+                currentPosition = Vector3.Lerp(startPosition, targetPosition, alpha);
+                currentRotation = Quaternion.Slerp(startRotation, targetRotation, alpha);
             }
+
+            m_HasUpdated = true;
         }
 
-        public Task<Matrix4x4> ProcessData(Matrix4x4 data, DataProcessorTrigger trigger)
+        public Task<SceneUpdateData> ProcessData(SceneUpdateData data, DataProcessorTrigger trigger)
         {
-            if (trigger == DataProcessorTrigger.NewData && data.ValidTRS())
+            if (trigger == DataProcessorTrigger.NewData)
             {
-                targetPosition = data.GetPosition();
-                targetRotation = data.rotation;
+                startPosition = currentPosition;
+                startRotation = currentRotation;
+                targetPosition = data.Pose.GetPosition();
+                targetRotation = data.Pose.rotation;
+                elapsedTime = 0f;
             }
-            return Task.FromResult(Matrix4x4.TRS(currentPosition, currentRotation, Vector3.one));
+            UpdatePose();
+            data.Pose = Matrix4x4.TRS(currentPosition, currentRotation, Vector3.one);
+            return Task.FromResult(data);
         }
 
         public Task ResetProcessor()

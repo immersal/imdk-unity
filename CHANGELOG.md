@@ -1,5 +1,24 @@
 # Changelog
 
+## [2.0.3] - 2024-09-11
+
+### Added
+- More options for PoseSmoother
+- Experimental options for PoseFilter
+- IDataProcessingChain interface
+
+### Changed
+- Plugins updated to 2.0.3
+- Reduced map loading time and memory usage
+- Improved realtime mapping speed
+- DataProcessingChain type argument constrained to be a reference type
+- XRSpace now uses the new SceneUpdateData from SceneUpdater in processing
+
+### Fixed
+- PoseFilter issues with large maps / offsets
+- Custom server URL serialization bug
+- ImmersalSession LocalizeOnce() checks current task before awaiting it
+
 ## [2.0.2] - 2024-04-26
 
 ### Added

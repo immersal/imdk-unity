@@ -490,9 +490,6 @@ namespace Immersal
             int height, ref Vector4 intrinsics, IntPtr pixels, int channels, int solverType, ref Quaternion cameraRotation);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int icvMapToEcefGet(IntPtr mapToEcef, int mapHandle);
-
-        [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvPosMapToEcef(IntPtr ecef, ref Vector3 map, IntPtr mapToEcef);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
