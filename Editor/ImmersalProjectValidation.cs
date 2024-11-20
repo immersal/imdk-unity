@@ -135,8 +135,8 @@ namespace Immersal
             
         }
 
-        private readonly List<ImmersalProjectValidation.ProjectIssue> projectIssues = new List<ImmersalProjectValidation.ProjectIssue>();
-        private List<ImmersalProjectValidation.ProjectIssue> fixAllIssues = new List<ImmersalProjectValidation.ProjectIssue>();
+        private readonly List<ImmersalProjectIssue> projectIssues = new List<ImmersalProjectIssue>();
+        private List<ImmersalProjectIssue> fixAllIssues = new List<ImmersalProjectIssue>();
 
         private double lastUpdate;
         private const double updateInterval = 1.0;
@@ -177,7 +177,7 @@ namespace Immersal
                 return;
 
             // Fix all
-            foreach (ImmersalProjectValidation.ProjectIssue issue in fixAllIssues)
+            foreach (ImmersalProjectIssue issue in fixAllIssues)
             {
                 issue.Fix?.Invoke();
             }
@@ -232,8 +232,8 @@ namespace Immersal
                     {
                         if (GUILayout.Button("Fix All", Styles.s_FixAll))
                         {
-                            fixAllIssues = new List<ImmersalProjectValidation.ProjectIssue>();
-                            foreach (ImmersalProjectValidation.ProjectIssue issue in projectIssues)
+                            fixAllIssues = new List<ImmersalProjectIssue>();
+                            foreach (ImmersalProjectIssue issue in projectIssues)
                             {
                                 if (!issue.RequiresManualFix)
                                     fixAllIssues.Add(issue);
@@ -249,7 +249,7 @@ namespace Immersal
 
                 using (new EditorGUI.DisabledScope(EditorApplication.isPlaying))
                 {
-                    foreach (ImmersalProjectValidation.ProjectIssue issue in projectIssues)
+                    foreach (ImmersalProjectIssue issue in projectIssues)
                     {
                         EditorGUILayout.BeginHorizontal(Styles.s_ListLabel);
 
@@ -290,20 +290,31 @@ namespace Immersal
     }
 
 #if UNITY_EDITOR
+
+    public interface IImmersalProjectIssueProvider
+    {
+        public string Name { get; }
+        public bool Enabled { get; set; }
+        public bool DisableDefaultIssues { get; }
+        public IEnumerable<ImmersalProjectIssue> Issues { get; }
+    }
+
+    public class ImmersalProjectIssue
+    {
+        public Func<string> Message;
+        public Func<bool> Check;
+        public Action Fix;
+        public bool Error;
+        public bool RequiresManualFix;
+    }
+    
     public static class ImmersalProjectValidation
     {
-        public class ProjectIssue
-        {
-            internal ProjectIssue() {}
-            public Func<string> Message;
-            public Func<bool> Check;
-            public Action Fix;
-            public bool Error;
-            public bool RequiresManualFix;
-        }
+        public static string PlayerPrefsStateString = "ImmersalProjectValidationState";
 
-        public static string PlayerPrefsStateString = "ImmersalProjectValidationState"; 
-        
+        private static IImmersalProjectIssueProvider m_DefaultIssueProvider = new DefaultImmersalProjectIssueProvider();
+        private static Dictionary<string, IImmersalProjectIssueProvider> m_IssueProviders = new Dictionary<string, IImmersalProjectIssueProvider>();
+
         public static BuildTargetGroup ActiveBuildTargetGroup = ActiveBuildTarget switch
         {
             BuildTarget.iOS => BuildTargetGroup.iOS,
@@ -318,28 +329,57 @@ namespace Immersal
         
         public static BuildTarget ActiveBuildTarget => EditorUserBuildSettings.activeBuildTarget;
         
-        public static void CheckIssues(List<ProjectIssue> issues)
+        public static void RegisterIssueProvider(IImmersalProjectIssueProvider provider)
         {
-            issues.Clear();
-            foreach (ProjectIssue issue in ProjectIssues)
-            {
-                if (!issue.Check?.Invoke() ?? false)
-                {
-                    issues.Add(issue);
-                }
-            }
+            m_IssueProviders[provider.Name] = provider;
         }
         
+        public static void CheckIssues(List<ImmersalProjectIssue> issues)
+        {
+            issues.Clear();
+            
+            if (m_IssueProviders.Count > 1)
+            {
+                issues.Add(new ImmersalProjectIssue
+                {
+                    Check = () => false,
+                    Message = () => "Multiple packages affecting project issues.",
+                    Error = false
+                });
+            }
+            
+            foreach (IImmersalProjectIssueProvider provider in m_IssueProviders.Values)
+            {
+                if (provider.DisableDefaultIssues)
+                    m_DefaultIssueProvider.Enabled = false;
+                if (provider.Enabled)
+                    issues.AddRange(provider.Issues);
+            }
+            
+            if (m_DefaultIssueProvider.Enabled)
+                issues.AddRange(m_DefaultIssueProvider.Issues);
+            
+            issues.RemoveAll(issue => issue.Check?.Invoke() ?? false);
+        }
+    }
+
+    internal class DefaultImmersalProjectIssueProvider : IImmersalProjectIssueProvider
+    {
+        public string Name => "Default";
+        public bool DisableDefaultIssues => false;
+        public bool Enabled { get; set; } = true;
+
+        public IEnumerable<ImmersalProjectIssue> Issues => DefaultProjectIssues;
+        
         // ReSharper disable once HeapView.ObjectAllocation
-        private static readonly ProjectIssue[] ProjectIssues =
+        private static readonly ImmersalProjectIssue[] DefaultProjectIssues =
         {
             // Graphics API
-#if !IMMERSAL_MAGIC_LEAP_ENABLED
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () =>
                 {
-                    return ActiveBuildTarget switch
+                    return ImmersalProjectValidation.ActiveBuildTarget switch
                     {
                         BuildTarget.iOS => "Graphics API must be set to Metal",
                         BuildTarget.Android => "Graphics API must be set to OpenGLES3",
@@ -349,8 +389,8 @@ namespace Immersal
                 },
                 Check = () =>
                 {
-                    GraphicsDeviceType[] graphicAPIs = PlayerSettings.GetGraphicsAPIs(ActiveBuildTarget);
-                    return ActiveBuildTarget switch
+                    GraphicsDeviceType[] graphicAPIs = PlayerSettings.GetGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget);
+                    return ImmersalProjectValidation.ActiveBuildTarget switch
                     {
                         BuildTarget.iOS => graphicAPIs.Length == 1 && graphicAPIs[0] == GraphicsDeviceType.Metal,
                         BuildTarget.Android => graphicAPIs.Length == 1 && graphicAPIs[0] == GraphicsDeviceType.OpenGLES3,
@@ -360,33 +400,33 @@ namespace Immersal
                 },
                 Fix = () =>
                 {
-                    GraphicsDeviceType[] cga = PlayerSettings.GetGraphicsAPIs(ActiveBuildTarget);
-                    var autoGraphicAPI = PlayerSettings.GetUseDefaultGraphicsAPIs(ActiveBuildTarget);
+                    GraphicsDeviceType[] cga = PlayerSettings.GetGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget);
+                    var autoGraphicAPI = PlayerSettings.GetUseDefaultGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget);
                     if (autoGraphicAPI)
-                        PlayerSettings.SetUseDefaultGraphicsAPIs(ActiveBuildTarget, false);
+                        PlayerSettings.SetUseDefaultGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget, false);
 
-                    GraphicsDeviceType[] graphicAPIs = ActiveBuildTarget switch
+                    GraphicsDeviceType[] graphicAPIs = ImmersalProjectValidation.ActiveBuildTarget switch
                     {
                         BuildTarget.iOS => new GraphicsDeviceType[] { GraphicsDeviceType.Metal },
                         BuildTarget.Android => new GraphicsDeviceType[] { GraphicsDeviceType.OpenGLES3 },
                         BuildTarget.StandaloneWindows => new GraphicsDeviceType[] { GraphicsDeviceType.OpenGLCore },
-                        _ => PlayerSettings.GetGraphicsAPIs(ActiveBuildTarget)
+                        _ => PlayerSettings.GetGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget)
                     };
 
-                    PlayerSettings.SetGraphicsAPIs(ActiveBuildTarget, graphicAPIs);
+                    PlayerSettings.SetGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget, graphicAPIs);
                 },
                 Error = true,
             },
             // IL2CPP
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "IL2CPP must be enabled.",
-                Check = () => PlayerSettings.GetScriptingBackend(ActiveBuildTargetGroup) == ScriptingImplementation.IL2CPP,
-                Fix = () => { PlayerSettings.SetScriptingBackend(ActiveBuildTargetGroup, ScriptingImplementation.IL2CPP); },
+                Check = () => PlayerSettings.GetScriptingBackend(ImmersalProjectValidation.ActiveBuildTargetGroup) == ScriptingImplementation.IL2CPP,
+                Fix = () => { PlayerSettings.SetScriptingBackend(ImmersalProjectValidation.ActiveBuildTargetGroup, ScriptingImplementation.IL2CPP); },
                 Error = true,
             },
             // Allow unsafe code
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Allow 'unsafe' code must be enabled.",
                 Check = () => PlayerSettings.allowUnsafeCode,
@@ -394,74 +434,74 @@ namespace Immersal
                 Error = true,
             },
             // Camera usage description
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Camera Usage Description must be defined.",
-                Check = () => ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.cameraUsageDescription != "",
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.cameraUsageDescription != "",
                 Fix = () => { PlayerSettings.iOS.cameraUsageDescription = "Required for augmented reality support."; },
                 Error = true,
             },
             // Location usage description
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Location Usage Description must be defined.",
-                Check = () => ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.locationUsageDescription != "",
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.iOS || PlayerSettings.iOS.locationUsageDescription != "",
                 Fix = () => { PlayerSettings.iOS.locationUsageDescription = "Required for satellite positioning support."; },
                 Error = true,
             },
             // minimum ios version 12.0
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Target minimum iOS Version must be 12.0 or higher.",
-                Check = () => ActiveBuildTarget != BuildTarget.iOS || (float.TryParse(PlayerSettings.iOS.targetOSVersionString, out float minVersion) && minVersion >= 12.0f),
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.iOS || (float.TryParse(PlayerSettings.iOS.targetOSVersionString, out float minVersion) && minVersion >= 12.0f),
                 Fix = () => { PlayerSettings.iOS.targetOSVersionString = "12.0"; },
                 Error = true,
             },
             // minimum android api version 26
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Minimum Android API Level must be 26 or higher.",
-                Check = () => ActiveBuildTarget != BuildTarget.Android ||
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android ||
                               PlayerSettings.Android.minSdkVersion >= AndroidSdkVersions.AndroidApiLevel26,
                 Fix = () => { PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26; },
                 Error = true,
             },
             // ARM64
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "ARM64 Target Architecture must be enabled.",
-                Check = () => ActiveBuildTarget != BuildTarget.Android ||
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android ||
                               (PlayerSettings.Android.targetArchitectures & AndroidArchitecture.ARM64) != 0,
                 Fix = () => { PlayerSettings.Android.targetArchitectures |= AndroidArchitecture.ARM64; },
                 Error = true,
             },
             // ARKit loader
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "ARKit XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTarget != BuildTarget.iOS || IsPluginLoaderEnabled("AR Kit Loader") ,
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.iOS || IsPluginLoaderEnabled("AR Kit Loader") ,
                 Fix = () =>
                 {
-                    EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
+                    EditorUserBuildSettings.selectedBuildTargetGroup = ImmersalProjectValidation.ActiveBuildTargetGroup;
                     SettingsService.OpenProjectSettings("Project/XR Plug-in Management");
                 },
                 Error = true,
                 RequiresManualFix = true
             },
             // ARCore loader
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "ARCore XR-Plugin Provider must be enabled.",
-                Check = () => ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("AR Core Loader"),
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("AR Core Loader"),
                 Fix = () =>
                 {
-                    EditorUserBuildSettings.selectedBuildTargetGroup = ActiveBuildTargetGroup;
+                    EditorUserBuildSettings.selectedBuildTargetGroup = ImmersalProjectValidation.ActiveBuildTargetGroup;
                     SettingsService.OpenProjectSettings("Project/XR Plug-in Management");
                 },
                 Error = true,
                 RequiresManualFix = true
             },
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Universal Render Pipeline is recommended",
                 Check = () => GraphicsSettings.defaultRenderPipeline != null,
@@ -470,35 +510,26 @@ namespace Immersal
                 RequiresManualFix = false
             },
             // android manifest exists
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Custom Android Manifest is required.",
-                Check = () => ActiveBuildTarget != BuildTarget.Android || CheckManifestExists(),
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android || CheckManifestExists(),
                 Fix = CreateManifest,
                 Error = true,
             },
             // android manifest has necessary attributes
-            new ProjectIssue()
+            new ImmersalProjectIssue()
             {
                 Message = () => "Android Manifest should include network permissions",
-                Check = () => ActiveBuildTarget != BuildTarget.Android || CheckManifestContent(),
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android || CheckManifestContent(),
                 Fix = ConfigureManifest,
                 Error = false,
             },
-#elif IMMERSAL_MAGIC_LEAP_ENABLED
-            new ProjectIssue()
-            {
-                Message = () => "Please refer to Magic Leap 2 documentation for project validation",
-                Check = () => false,
-                Fix = null,
-                Error = false,
-            },
-#endif
         };
         
         private static bool IsPluginLoaderEnabled(string loaderName)
         {
-            XRGeneralSettings generalSettings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(ActiveBuildTargetGroup);
+            XRGeneralSettings generalSettings = XRGeneralSettingsPerBuildTarget.XRGeneralSettingsForBuildTarget(ImmersalProjectValidation.ActiveBuildTargetGroup);
             if (generalSettings == null)
                 return false;
                 

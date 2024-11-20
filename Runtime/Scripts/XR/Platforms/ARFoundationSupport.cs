@@ -33,7 +33,10 @@ namespace Immersal.XR
 
         private XRCameraConfiguration? m_InitialConfig;
         private bool m_ConfigDone = false;
-        
+
+        private bool m_OverrideScreenOrientation = false;
+        private ScreenOrientation m_ScreenOrientationOverride = ScreenOrientation.Portrait;
+
         public ARCameraManager cameraManager
         {
             get
@@ -322,29 +325,30 @@ namespace Immersal.XR
 
             return success;
         }
+
+        public void SetOrientationOverride(ScreenOrientation newOrientation)
+        {
+            m_OverrideScreenOrientation = true;
+            m_ScreenOrientationOverride = newOrientation;
+        }
+
+        public void DisableOrientationOverride()
+        {
+            m_OverrideScreenOrientation = false;
+        }
         
         public Quaternion GetOrientation()
         {
-            float angle = 0f;
-            switch (Screen.orientation)
+            ScreenOrientation orientation =
+                m_OverrideScreenOrientation ? m_ScreenOrientationOverride : Screen.orientation;
+            float angle = orientation switch
             {
-                case ScreenOrientation.Portrait:
-                    angle = 90f;
-                    break;
-                case ScreenOrientation.LandscapeLeft:
-                    angle = 180f;
-                    break;
-                case ScreenOrientation.LandscapeRight:
-                    angle = 0f;
-                    break;
-                case ScreenOrientation.PortraitUpsideDown:
-                    angle = -90f;
-                    break;
-                default:
-                    angle = 0f;
-                    break;
-            }
-
+                ScreenOrientation.Portrait => 90f,
+                ScreenOrientation.LandscapeLeft => 180f,
+                ScreenOrientation.LandscapeRight => 0f,
+                ScreenOrientation.PortraitUpsideDown => -90f,
+                _ => 0f
+            };
             return Quaternion.Euler(0f, 0f, angle);
         }
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.0.4] - 2024-11-20
+
+### Added
+- Screen orientation override methods in ARFoundationSupport
+- Mechanism to support project validation issues from external packages
+
+### Changed
+- Default project issues now use the new issue provider mechanism
+
+### Fixed
+- Missing script references in a couple of prefabs
+
+### Removed
+- Hardcoded Magic Leap specific project issue
+
 ## [2.0.3] - 2024-09-11
 
 ### Added
