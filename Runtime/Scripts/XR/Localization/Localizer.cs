@@ -36,18 +36,6 @@ namespace Immersal.XR
 	    public int MapId { get; set; }
 	    public LocalizeInfo LocalizeInfo { get; set; }
     }
-
-    public class LocalizationTask
-    {
-	    public Task<ILocalizationResult> LocalizationMethodTask { get; private set; }
-	    public CancellationTokenSource CancellationTokenSource { get; private set; }
-
-	    public LocalizationTask(Task<ILocalizationResult> task, CancellationTokenSource cancellationTokenSource)
-	    {
-		    LocalizationMethodTask = task;
-		    CancellationTokenSource = cancellationTokenSource;
-	    }
-    }
     
     public class Localizer : MonoBehaviour, ILocalizer 
     {
@@ -283,14 +271,48 @@ namespace Immersal.XR
 	        OnLocalizationResult?.Invoke(localizationResults);
 	        return localizationResults;
         }
+        
+        public async Task<List<LocalizationTask>> CreateLocalizationTasks(ICameraData cameraData)
+        {
+	        List<LocalizationTask> tasks = new List<LocalizationTask>();
+	        
+	        foreach (ILocalizationMethod localizationMethod in m_ConfiguredLocalizationMethods)
+	        {
+		        // Create new localization task
+		        tasks.Add(CreateNewLocalizationTask(localizationMethod, cameraData));
+	        }
+
+	        return tasks;
+        }
+        
+        public async Task<ILocalizationResults> LocalizeAllMethods(ICameraData cameraData)
+        {
+	        List<ILocalizationResult> results = new List<ILocalizationResult>();
+	        List<LocalizationTask> tasks = await CreateLocalizationTasks(cameraData);
+	        await Task.WhenAll(tasks.Select(t => t.LocalizationMethodTask));
+	        foreach (Task<ILocalizationResult> t in tasks.Select(t => t.LocalizationMethodTask))
+	        {
+		        if (t.Status != TaskStatus.RanToCompletion) continue;
+		        results.Add(t.Result);
+		        t.Dispose();
+	        }
+	        return new LocalizationResults { Results = results.ToArray() };
+        }
 
         private void StartNewLocalizationTask(ILocalizationMethod localizationMethod, ICameraData cameraData)
         {
-	        ImmersalLogger.Log($"Starting new localization task: {localizationMethod.GetType().Name}");
 	        CancellationTokenSource cts = new CancellationTokenSource();
 	        Task<ILocalizationResult> localizationMethodTask = localizationMethod.Localize(cameraData, cts.Token);
 	        LocalizationTask task = new LocalizationTask(localizationMethodTask, cts);
 	        m_RunningLocalizationTasks.Add(localizationMethod, task);
+        }
+
+        private LocalizationTask CreateNewLocalizationTask(ILocalizationMethod localizationMethod, ICameraData cameraData)
+        {
+	        CancellationTokenSource cts = new CancellationTokenSource();
+	        Task<ILocalizationResult> localizationMethodTask = localizationMethod.Localize(cameraData, cts.Token);
+	        LocalizationTask task = new LocalizationTask(localizationMethodTask, cts);
+	        return task;
         }
 
         private ILocalizationResult[] CollectLocalizationResults()
@@ -350,6 +372,8 @@ namespace Immersal.XR
 
         private async Task StopRunningLocalizationTasks()
         {
+	        if (m_RunningLocalizationTasks is not { Count: > 0 }) return;
+	        
 	        List<Task<ILocalizationResult>> tasks = new List<Task<ILocalizationResult>>();
 	         
 	        foreach (LocalizationTask localizationTask in m_RunningLocalizationTasks.Values)
@@ -363,6 +387,23 @@ namespace Immersal.XR
 	         
 	        // Clean up tasks
 	        m_RunningLocalizationTasks.Clear();
+        }
+
+        public async Task StopLocalizationForMethod(ILocalizationMethod localizationMethod)
+        {
+	        if (m_RunningLocalizationTasks is not { Count: > 0 }) return;
+	        
+	        if (m_RunningLocalizationTasks.TryGetValue(localizationMethod, out LocalizationTask task))
+	        {
+		        task.CancellationTokenSource.Cancel();
+		        await task.LocalizationMethodTask;
+		        m_RunningLocalizationTasks.Remove(localizationMethod);
+	        }
+        }
+
+        public bool TryGetLocalizationTask(ILocalizationMethod localizationMethod, out LocalizationTask task)
+        {
+	        return m_RunningLocalizationTasks.TryGetValue(localizationMethod, out task);
         }
 
          public async Task StopAndCleanUp()
@@ -394,5 +435,8 @@ namespace Immersal.XR
     {
 	    public XRMap[] MapsToAdd { get; set; }
 	    public XRMap[] MapsToRemove { get; set; }
+	    public SolverType? SolverType { get; set; }
+	    public int? PriorNNCount { get; set; }
+	    public float? PriorRadius { get; set; }
     }
 }

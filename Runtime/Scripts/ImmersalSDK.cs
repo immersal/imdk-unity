@@ -29,7 +29,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.0.4";
+		public static string sdkVersion = "2.1.0";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		
@@ -99,6 +99,7 @@ namespace Immersal
         public ITrackingStatus TrackingStatus => TrackingAnalyzer.TrackingStatus;
         public bool IsReady => m_IsReady;
         public int LicenseLevel => m_LicenseLevel;
+        public bool HasValidated => m_HasValidated;
         public static HttpClient client;
 
         public int targetFrameRate
@@ -152,6 +153,7 @@ namespace Immersal
 
         [Header("Events")]
         public UnityEvent OnInitializationComplete;
+        public UnityEvent OnUserValidationComplete;
         public UnityEvent OnReset;
         
         [SerializeField]
@@ -159,6 +161,7 @@ namespace Immersal
         private int m_LicenseLevel = -1;
         
         private bool m_IsReady = false;
+        private bool m_HasValidated = false;
         private bool m_PluginCallbackRegistered = false;
         private bool m_PlatformIsConfigured = false;
         private bool m_LocalizerIsConfigured = false;
@@ -271,6 +274,9 @@ namespace Immersal
 				string licenseLevel = m_LicenseLevel >= 1 ? "Enterprise" : "Free";
 				ImmersalLogger.Log($"{licenseLevel} License");
 	        }
+
+	        m_HasValidated = true;
+	        OnUserValidationComplete?.Invoke();
         }
 
         private async Task ConfigureComponents()

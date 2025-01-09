@@ -20,4 +20,15 @@ namespace Immersal.XR
         Transform GetTransform();
         Task ResetScene();
     }
+
+    public static class SceneUpdateableExtensions
+    {
+        public static Matrix4x4 ToMapSpace(this ISceneUpdateable sceneUpdateable, Vector3 pos, Quaternion rot)
+        {
+            Transform spaceTransform = sceneUpdateable.GetTransform();
+            Matrix4x4 pose = Matrix4x4.TRS(pos, rot, Vector3.one);
+            Matrix4x4 spacePose = Matrix4x4.TRS(spaceTransform.position, spaceTransform.rotation, Vector3.one);
+            return spacePose.inverse * pose;
+        }
+    }
 }

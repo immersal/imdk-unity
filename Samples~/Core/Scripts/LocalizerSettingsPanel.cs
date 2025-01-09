@@ -37,6 +37,42 @@ namespace Immersal.Samples
             m_Space.ProcessPoses = value;
         }
 
+        public void SetSolverType(int solverTypeIndex)
+        {
+            foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
+            {
+                localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
+                {
+                    SolverType = (SolverType)solverTypeIndex
+                });
+            }
+        }
+
+        public void SetPriorNNCount(string input)
+        {
+            int newCount = int.Parse(input);
+            foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
+            {
+                localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
+                {
+                    PriorNNCount = newCount
+                });
+            }
+        }
+        
+        public void SetPriorRadius(string input)
+        {
+            float newRadius = float.Parse(input);
+            foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
+            {
+                localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
+                {
+                    PriorRadius = newRadius
+                });
+            }
+        }
+        
+
         public void Pause()
         {
             ImmersalSDK.Instance.Session.PauseSession();

@@ -231,6 +231,11 @@ namespace Immersal.REST
         public double qz;
         public double qw;
         public int solverType;
+        public double priorX;
+        public double priorY;
+        public double priorZ;
+        public int priorNeighborCountMin;
+        public double priorRadius;
     }
 
     [Serializable]
@@ -248,6 +253,11 @@ namespace Immersal.REST
         public double qz;
         public double qw;
         public int solverType;
+        public double priorX;
+        public double priorY;
+        public double priorZ;
+        public int priorNeighborCountMin;
+        public double priorRadius;
     }
 
     [Serializable]

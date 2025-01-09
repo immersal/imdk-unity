@@ -48,31 +48,65 @@ namespace Immersal.Samples.Mapping
         private MeshRenderer m_MeshRenderer = null;
         private XRMap m_XRMap = null;
 
-        void Start()
+        private bool m_SdkInitComplete = false;
+        private bool m_UserValidationComplete = false;
+        
+        private void Start()
         {
-            m_Sdk = ImmersalSDK.Instance;
-            if (m_Sdk.IsReady)
-            {
-                Init();
-            }
-            else
-            {
-                m_Sdk.OnInitializationComplete.AddListener(Init);
-            }
-        }
-
-        private void Init()
-        {
-            m_Sdk.OnInitializationComplete.RemoveListener(Init);
-            
             m_MainCamera = Camera.main;
             m_CaptureButtonIcon.sprite = m_StartCaptureSprite;
             m_CaptureButton.interactable = false;
+            
+            InitMesh();
+            
+            LogStatus("Initializing...");
+            
+            m_Sdk = ImmersalSDK.Instance;
+            
+            // Check if SDK is ready and user is authorized
+            // If not, setup callbacks to act when the processes complete
+            m_SdkInitComplete = m_Sdk.IsReady;
+            if (!m_SdkInitComplete) m_Sdk.OnInitializationComplete.AddListener(InitializationComplete);
+            m_UserValidationComplete = m_Sdk.HasValidated;
+            if (!m_UserValidationComplete) m_Sdk.OnUserValidationComplete.AddListener(ValidationComplete);
+            CheckState();
+        }
 
+        private void InitializationComplete()
+        {
+            m_Sdk.OnInitializationComplete.RemoveListener(InitializationComplete);
+            m_SdkInitComplete = true;
+            CheckState();
+        }
+
+        private void ValidationComplete()
+        {
+            m_Sdk.OnUserValidationComplete.RemoveListener(ValidationComplete);
+            m_UserValidationComplete = true;
+            CheckState();
+        }
+
+        private void CheckState()
+        {
+            if (!m_SdkInitComplete || !m_UserValidationComplete) return;
+
+            // Stop / disable mapping if not tracking
+            if (!m_IsTracking)
+            {
+                if (m_IsMapping)
+                {
+                    StopRealtimeCapture();
+                }
+                m_CaptureButton.interactable = false;
+                LogStatus("Not tracking");
+                return;
+            }
+            
+            // Check license level
             if (m_Sdk.LicenseLevel >= 1)
             {
-                LogStatus("Initializing...");
-                InitMesh();
+                m_CaptureButton.interactable = true;
+                LogStatus("Ready");
             }
             else
             {
@@ -93,17 +127,7 @@ namespace Immersal.Samples.Mapping
 		private void ARSessionStateChanged(ARSessionStateChangedEventArgs args)
 		{
             m_IsTracking = args.state == ARSessionState.SessionTracking;
-
-            if (m_IsTracking)
-            {
-                m_CaptureButton.interactable = true;
-                LogStatus("Ready");
-            }
-            else
-            {
-                m_CaptureButton.interactable = false;
-                LogStatus("Initializing...");
-            }
+            CheckState();
 		}
 
         private void LogStatus(string s)
@@ -298,27 +322,21 @@ namespace Immersal.Samples.Mapping
 
             if (!platformUpdateResult.Success)
                 return;
-            
-            if (platformUpdateResult.CameraData.PixelBuffer == IntPtr.Zero)
-                return;
-            
-            const int channels = 1;
-            ICameraData data = platformUpdateResult.CameraData;
-            Vector3 pos = data.CameraPositionOnCapture;
-            Quaternion r = data.CameraRotationOnCapture;
-            r *= data.Orientation;
+
+            ICameraData cameraData = platformUpdateResult.CameraData;
+            using IImageData imageData = cameraData.GetImageData();
+
+            Vector3 pos = cameraData.CameraPositionOnCapture;
+            Quaternion r = cameraData.CameraRotationOnCapture;
+            r *= cameraData.Orientation;
             pos.SwitchHandedness();
             r.SwitchHandedness();
-            Vector4 intrinsics = data.Intrinsics;
-            
-            Task<int> t = Task.Run(() =>
-            {
-                return Immersal.Core.MapAddImage(data.PixelBuffer, data.Width, data.Height, channels, ref intrinsics, ref pos, ref r);
-            });
+            Vector4 intrinsics = cameraData.Intrinsics;
 
-            await t;
+            int result = await Task.Run(() => Immersal.Core.MapAddImage(imageData.UnmanagedDataPointer, cameraData.Width,
+                cameraData.Height, cameraData.Channels, ref intrinsics, ref pos, ref r));
 
-            if (t.Result == 0)
+            if (result == 0)
             {
                 int numPoints = Immersal.Core.MapPointsGetCount();
                 Vector3[] points = new Vector3[numPoints];

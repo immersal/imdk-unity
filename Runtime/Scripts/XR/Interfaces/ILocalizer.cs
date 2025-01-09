@@ -11,6 +11,7 @@ Contact sales@immersal.com for licensing requests.
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Immersal.REST;
 
@@ -38,6 +39,22 @@ namespace Immersal.XR
         ILocalizationMethod[] AvailableLocalizationMethods { get;  }
         Task<ILocalizerConfigurationResult> ConfigureLocalizer(ILocalizerConfiguration configuration);
         Task<ILocalizationResults> Localize(ICameraData cameraData);
+        Task<List<LocalizationTask>> CreateLocalizationTasks(ICameraData cameraData);
+        Task<ILocalizationResults> LocalizeAllMethods(ICameraData cameraData);
         Task StopAndCleanUp();
+        Task StopLocalizationForMethod(ILocalizationMethod localizationMethod);
+        bool TryGetLocalizationTask(ILocalizationMethod localizationMethod, out LocalizationTask task);
+    }
+    
+    public class LocalizationTask
+    {
+        public Task<ILocalizationResult> LocalizationMethodTask { get; private set; }
+        public CancellationTokenSource CancellationTokenSource { get; private set; }
+
+        public LocalizationTask(Task<ILocalizationResult> task, CancellationTokenSource cancellationTokenSource)
+        {
+            LocalizationMethodTask = task;
+            CancellationTokenSource = cancellationTokenSource;
+        }
     }
 }

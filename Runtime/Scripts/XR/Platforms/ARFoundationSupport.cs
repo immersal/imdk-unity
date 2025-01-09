@@ -10,6 +10,7 @@ Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
@@ -32,6 +33,7 @@ namespace Immersal.XR
         private Transform m_CameraTransform;
 
         private XRCameraConfiguration? m_InitialConfig;
+        private IPlatformConfiguration m_Configuration;
         private bool m_ConfigDone = false;
 
         private bool m_OverrideScreenOrientation = false;
@@ -66,9 +68,13 @@ namespace Immersal.XR
         [SerializeField]
         [Tooltip("Android resolution")]
         private CameraResolution m_AndroidResolution = CameraResolution.FullHD;
+        
         [SerializeField]
         [Tooltip("iOS resolution")]
         private CameraResolution m_iOSResolution = CameraResolution.Default;
+
+        [SerializeField]
+        private CameraDataFormat m_CameraDataFormat = CameraDataFormat.SingleChannel;
         
         public CameraResolution androidResolution
         {
@@ -91,10 +97,18 @@ namespace Immersal.XR
         }
 
         private Task<(bool, CameraData)> m_CurrentCameraDataTask;
-        private IntPtr m_PixelBuffer = IntPtr.Zero;
         private bool m_isTracking = false;
-        
+
         public async Task<IPlatformConfigureResult> ConfigurePlatform()
+        {
+            PlatformConfiguration config = new PlatformConfiguration
+            {
+                CameraDataFormat = m_CameraDataFormat
+            };
+            return await ConfigurePlatform(config);
+        }
+
+        public async Task<IPlatformConfigureResult> ConfigurePlatform(IPlatformConfiguration configuration)
         {
             ImmersalLogger.Log("Configuring ARF Platform");
             
@@ -114,6 +128,8 @@ namespace Immersal.XR
                 throw new ComponentTaskCriticalException("Could not find ARSession.");
             }
 
+            m_Configuration = configuration;
+            
             if (Camera.main != null) m_CameraTransform = Camera.main.transform;
 
             for (int i = 0; i < m_MaxConfigurationAttempts; i++)
@@ -201,8 +217,18 @@ namespace Immersal.XR
 #endif
             return true;
         }
-
+        
         public async Task<IPlatformUpdateResult> UpdatePlatform()
+        {
+            return await UpdateWithConfiguration(m_Configuration);
+        }
+        
+        public async Task<IPlatformUpdateResult> UpdatePlatform(IPlatformConfiguration oneShotConfiguration)
+        {
+            return await UpdateWithConfiguration(oneShotConfiguration);
+        }
+        
+        private async Task<IPlatformUpdateResult> UpdateWithConfiguration(IPlatformConfiguration configuration)
         {
             ImmersalLogger.Log("Updating ARF Platform");
             
@@ -215,7 +241,7 @@ namespace Immersal.XR
                 TrackingQuality = m_isTracking ? 1 : 0
             };
 
-            m_CurrentCameraDataTask = GetCameraData();
+            m_CurrentCameraDataTask = GetCameraData(configuration.CameraDataFormat);
             (bool success, CameraData data) = await m_CurrentCameraDataTask;
 
             // UpdateResult
@@ -223,89 +249,55 @@ namespace Immersal.XR
             {
                 Success = success,
                 Status = platformStatus,
-                CameraData = data
+                CameraData = (ICameraData)data
             };
        
             return r;
         }
 
-        private async Task<(bool, CameraData)> GetCameraData()
+        private async Task<(bool, CameraData)> GetCameraData(CameraDataFormat cameraDataFormat)
         {
-            // CameraData
-            CameraData data = new CameraData();
-
-            bool imageAcquired = false;
-            await Task.Run(() =>
-            {
-                imageAcquired = m_CameraManager.TryAcquireLatestCpuImage(out XRCpuImage image);
-                if (!imageAcquired) return;
-                using (image)
-                {
-                    GetPlaneDataFast(ref m_PixelBuffer, image);
-                    data.PixelBuffer = m_PixelBuffer;
-
-                    data.Width = image.width;
-                    data.Height = image.height;
-                }
-            });
-
-            if (!imageAcquired)
-            {
-                ImmersalLogger.LogError("Could not acquire camera image.");
-                return (false, data);
-            }
-            
             if (!GetIntrinsics(out Vector4 intrinsics))
             {
                 ImmersalLogger.LogError("Could not acquire camera intrinsics.");
-                return (false, data);
+                return (false, null);
             }
 
             if (m_CameraTransform == null)
             {
                 ImmersalLogger.LogError("Could not acquire camera pose.");
-                return (false, data);
+                return (false, null);
             }
             
-            data.Intrinsics = intrinsics;
-            data.CameraPositionOnCapture = m_CameraTransform.position;
-            data.CameraRotationOnCapture = m_CameraTransform.rotation;
-
-            // distortion..
-
-            data.Orientation = GetOrientation();
+            bool imageAcquired = false;
+            Task<XRCpuImage> t = Task.Run(() =>
+            {
+                // XRCpuImage lifecycle will be managed by CameraData/ImageData
+                imageAcquired = m_CameraManager.TryAcquireLatestCpuImage(out XRCpuImage image);
+                return image;
+            });
+            XRCpuImage image = await t;
+            
+            if (!imageAcquired)
+            {
+                ImmersalLogger.LogError("Could not acquire camera image.");
+                return (false, null);
+            }
+            
+            ARFImageData imageData = new ARFImageData(image, cameraDataFormat);
+            CameraData data = new CameraData(imageData)
+            {
+                Width = image.width,
+                Height = image.height,
+                Intrinsics = intrinsics,
+                Format = cameraDataFormat,
+                Channels = cameraDataFormat == CameraDataFormat.SingleChannel ? 1 : 3,
+                CameraPositionOnCapture = m_CameraTransform.position,
+                CameraRotationOnCapture = m_CameraTransform.rotation,
+                Orientation = GetOrientation()
+            };
 
             return (true, data);
-        }
-
-        public void GetPlaneDataFast(ref IntPtr pixels, XRCpuImage image)
-        {
-            XRCpuImage.Plane plane = image.GetPlane(0);	// use the Y plane
-            int width = image.width, height = image.height;
-
-            if (width == plane.rowStride)
-            {
-                unsafe
-                {
-                    pixels = (IntPtr)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
-                }
-            }
-            else
-            {
-                byte[] data = new byte[width * height];
-
-                unsafe
-                {
-                    fixed (byte* dstPtr = data)
-                    {
-                        byte* srcPtr = (byte*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
-                        if (width > 0 && height > 0) {
-                            UnsafeUtility.MemCpyStride(dstPtr, width, srcPtr, plane.rowStride, width, height);
-                        }
-                        pixels = (IntPtr)dstPtr;
-                    }
-                }
-            }
         }
 
         public bool GetIntrinsics(out Vector4 intrinsics)
@@ -378,13 +370,117 @@ namespace Immersal.XR
 	         // there is no cancellation token for the update procedure here, just wait
              await m_CurrentCameraDataTask;
              m_ConfigDone = false;
-             m_PixelBuffer = IntPtr.Zero;
              m_isTracking = false;
         }
+    }
+    
+    public class ARFImageData : ImageData
+    {
+        public XRCpuImage Image;
+        private IntPtr m_unmanagedDataPointer;
+        private byte[] m_managedBytes;
 
-        private void OnDestroy()
+        public override IntPtr UnmanagedDataPointer => m_unmanagedDataPointer;
+
+        public override byte[] ManagedBytes
         {
-            m_PixelBuffer = IntPtr.Zero;
+            get
+            {
+                if (m_managedBytes == null || m_managedBytes.Length == 0)
+                {
+                    m_managedBytes = CopyBytes();
+                }
+
+                return m_managedBytes;
+            }
+        }
+
+        private CameraDataFormat m_Format;
+
+        public ARFImageData(XRCpuImage image, CameraDataFormat format)
+        {
+            Image = image;
+            m_Format = format;
+            switch (format)
+            {
+                case CameraDataFormat.RGB:
+                    GetPointerToRGB(ref m_unmanagedDataPointer, Image);
+                    break;
+                default:
+                case CameraDataFormat.SingleChannel:
+                    GetPointerFast(ref m_unmanagedDataPointer, Image);
+                    break;
+            }
+        }
+
+        public override void DisposeData()
+        {
+            Image.Dispose();
+            m_unmanagedDataPointer = IntPtr.Zero;
+        }
+
+        private void GetPointerFast(ref IntPtr unmanagedPointer, XRCpuImage image)
+        {
+            XRCpuImage.Plane plane = image.GetPlane(0); // use the Y plane
+            int width = image.width, height = image.height;
+
+            if (width == plane.rowStride)
+            {
+                unsafe
+                {
+                    unmanagedPointer = (IntPtr)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
+                }
+            }
+            else
+            {
+                byte[] data = new byte[width * height];
+
+                unsafe
+                {
+                    fixed (byte* dstPtr = data)
+                    {
+                        byte* srcPtr = (byte*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
+                        if (width > 0 && height > 0)
+                        {
+                            UnsafeUtility.MemCpyStride(dstPtr, width, srcPtr, plane.rowStride, width, height);
+                        }
+
+                        unmanagedPointer = (IntPtr)dstPtr;
+                    }
+                }
+            }
+        }
+
+        private static void GetPointerToRGB(ref IntPtr unmanagedPointer, XRCpuImage image)
+        {
+            var conversionParams = new XRCpuImage.ConversionParams
+            {
+                inputRect = new RectInt(0, 0, image.width, image.height),
+                outputDimensions = new Vector2Int(image.width, image.height),
+                outputFormat = TextureFormat.RGB24,
+                transformation = XRCpuImage.Transformation.None
+            };
+
+            int size = image.GetConvertedDataSize(conversionParams);
+            byte[] data = new byte[size];
+
+            unsafe
+            {
+                fixed (byte* dstPtr = data)
+                {
+                    unmanagedPointer = (IntPtr)dstPtr;
+                    image.Convert(conversionParams, unmanagedPointer, data.Length);
+                }
+            }
+        }
+
+        private byte[] CopyBytes()
+        {
+            int pixelSize = m_Format == CameraDataFormat.SingleChannel ? 1 : 3;
+            int size = Image.width * Image.height * pixelSize;
+            byte[] bytes = new byte[size];
+            Marshal.Copy(m_unmanagedDataPointer, bytes, 0, size);
+            return bytes;
         }
     }
 }

@@ -27,6 +27,9 @@ namespace Immersal.XR
     {
         XRMap[] MapsToAdd { get; }
         XRMap[] MapsToRemove { get; }
+        SolverType? SolverType { get; }
+        int? PriorNNCount { get; }
+        float? PriorRadius { get; }
     }
 
     public enum ConfigurationMode

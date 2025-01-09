@@ -25,9 +25,6 @@ namespace Immersal.XR
 		[Tooltip("Start Session at app startup")] [SerializeField]
 		private bool m_AutoStart = true;
 
-		[Tooltip("Update Session continuously")] [SerializeField]
-		private bool m_UpdateContinuously = true;
-
 		[Tooltip("Seconds between continuous updates")] [SerializeField]
 		private float m_SessionUpdateInterval = 2.0f;
 
@@ -146,7 +143,7 @@ namespace Immersal.XR
 				m_SessionDataProcessingChain.UpdateChain();
 
 			// bail out conditionals
-			if (!m_UpdateContinuously || !m_SessionIsRunning || !sdk.IsReady || MapManager.GetRegisteredMapCount() == 0)
+			if (!m_SessionIsRunning || !sdk.IsReady || !MapManager.HasRegisteredMaps)
 				return;
 
 			float curTime = Time.unscaledTime;

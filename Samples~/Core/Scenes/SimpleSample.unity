@@ -416,9 +416,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9edd45749c5964a5bbbdec0791c43d79, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_Mode: 0
+  m_SlowApproachSmoothing: 0.025
+  m_SmoothTimeSpan: 0.5
   m_WarpOutsideThreshold: 1
-  m_WarpThresholdDistSq: 25
-  m_WarpThresholdCosAngle: 0.9396926
+  m_WarpThresholdDist: 5
+  m_WarpThresholdAngle: 20
 --- !u!4 &265432124
 Transform:
   m_ObjectHideFlags: 0
@@ -536,6 +539,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 3150119538342652997, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
+      propertyPath: m_ConfigurationMode
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -581,6 +588,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ace14c723c1842578283a60dffe9bb2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_UseConfidence: 0
+  m_ConfidenceMax: 20
+  m_ConfidenceImpact: 0.5
 --- !u!4 &796607213
 Transform:
   m_ObjectHideFlags: 0

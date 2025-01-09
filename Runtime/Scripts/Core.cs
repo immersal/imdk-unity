@@ -128,7 +128,7 @@ namespace Immersal
         {
             if (MapHandleMapping.TryGetHandle(mapId, out int mapHandle))
             {
-                ImmersalLogger.Log($"Freeing map {mapId}({mapHandle} from plugin");
+                ImmersalLogger.Log($"Freeing map {mapId}({mapHandle}) from plugin");
                 MapHandleMapping.RemoveMappingByMapId(mapId);
                 return Native.icvFreeMap(mapHandle);
             }
@@ -220,19 +220,46 @@ namespace Immersal
             int[] mapIds = new int[1];
             return LocalizeImage(n, mapIds, width, height, ref intrinsics, pixels, channels, solverType, ref cameraRotation);
         }
-        
+            
         /// <summary>
         /// Gets the position and orientation of the image within the map.
         /// </summary>
         /// <param name="cameraData">ICameraData containing necessary data</param>
         /// <returns>A LocalizeInfo struct with mapId. mapId will be -1 on failure.</returns>
-        public static LocalizeInfo LocalizeImage(ICameraData cameraData, int solverType = 0)
+        public static LocalizeInfo LocalizeImage(ICameraData cameraData, IntPtr pixelBuffer, int solverType = 0)
         {
-            int channels = 1;
+            int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
             Vector4 intrinsics = cameraData.Intrinsics;
             Quaternion r = cameraData.CameraRotationOnCapture * cameraData.Orientation;
             r.SwitchHandedness();
-            return LocalizeImage(cameraData.Width, cameraData.Height, ref intrinsics, cameraData.PixelBuffer, channels, solverType, ref r);
+            return LocalizeImage(cameraData.Width, cameraData.Height, ref intrinsics, pixelBuffer, channels, solverType, ref r);
+        }
+        
+        public static LocalizeInfo icvLocalizeImageWithPrior(ICameraData cameraData, IntPtr pixelBuffer, ref Vector3 priorPos, int priorNNCount, float priorRadius)
+        {
+            int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
+            Vector4 intrinsics = cameraData.Intrinsics;
+            int n = 0;
+            int[] mapIds = new int[1];
+            if (MapHandleMapping.IdsToHandles(mapIds, out int[] handles))
+            {
+                GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
+                LocalizeInfo result = Native.icvLocalizePrior(n, intHandle.AddrOfPinnedObject(), cameraData.Width, cameraData.Height,
+                    ref intrinsics, pixelBuffer, channels, ref priorPos, priorNNCount, priorRadius);
+                intHandle.Free();
+                
+                // result.mapId is a handle at this point -> convert
+                if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
+                {
+                    result.mapId = mapId;
+                    return result;
+                }
+            }
+
+            return new LocalizeInfo
+            {
+                mapId = -1
+            };
         }
 
         /// <summary>
@@ -488,6 +515,10 @@ namespace Immersal
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern LocalizeInfo icvLocalize(int n, IntPtr handles, int width,
             int height, ref Vector4 intrinsics, IntPtr pixels, int channels, int solverType, ref Quaternion cameraRotation);
+        
+        [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
+        public static extern LocalizeInfo icvLocalizePrior(int n, IntPtr handles, int width,
+            int height, ref Vector4 intrinsics, IntPtr pixels, int channels, ref Vector3 priorPos, int priorNNCount, float priorRadius);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvPosMapToEcef(IntPtr ecef, ref Vector3 map, IntPtr mapToEcef);

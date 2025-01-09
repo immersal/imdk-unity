@@ -63,7 +63,7 @@ namespace Immersal.Samples
             }
         }
 
-        public async void OnValueChanged(TMP_Dropdown dropdown)
+        public void OnValueChanged(TMP_Dropdown dropdown)
         {
             int value = dropdown.value - 1;
             if (value >= 0)

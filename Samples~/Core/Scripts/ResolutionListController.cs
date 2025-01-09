@@ -27,7 +27,7 @@ namespace Immersal.Samples
 
         void Awake()
         {
-            m_ARFSupport = (ARFoundationSupport)ImmersalSDK.Instance.PlatformSupport;
+            m_ARFSupport = ImmersalSDK.Instance.PlatformSupport as ARFoundationSupport;
             
             if (m_ARFSupport == null)
             {

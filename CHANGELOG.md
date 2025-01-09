@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.1.0] - 2025-01-09
+
+### Added
+- Localization with prior pose with the new SolverType and related options
+- Event and boolean for user validation completion at SDK initialization
+- IPlatformConfiguration for setting options (eg. image format) once or per update
+- Utility functions in ILocalizer to better support custom localization scripts
+- CustomLocalizationSample scene and script
+
+### Changed
+- The 2.x.x SDK is no longer considered to be in a beta state
+- Updated all plugins to 2.1.0
+- The CameraData structure has been refactored into a new set of interfaces and classes
+- ARFoundationSupport updated to work with refactored CameraData system
+
+### Fixed
+- ImmersalSession starting localization too early when adding maps at runtime
+- MapManager removing embedded maps while localizing against them
+- Small RealtimeMapping sample bugs
+
+### Removed
+- Old CameraData struct and related logic
+- Support for platforms using old CameraData (all platform packages older than 2.1.0)
+
 ## [2.0.4] - 2024-11-20
 
 ### Added

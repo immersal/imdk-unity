@@ -35,7 +35,7 @@ namespace Immersal.REST
             string jsonString = JsonUtility.ToJson(request);
             HttpRequestMessage r = new HttpRequestMessage(HttpMethod.Post, string.Format(URL_FORMAT, ImmersalSDK.Instance.localizationServer, (string)typeof(T).GetField("endpoint").GetValue(null)));
             r.Content = new StringContent(jsonString);
-
+            
             try
             {
                 using (MemoryStream stream = new MemoryStream())
@@ -43,7 +43,6 @@ namespace Immersal.REST
                     using (var response = await ImmersalSDK.client.DownloadAsync(r, stream, progress, cancellationToken))
                     {
                         string responseBody = Encoding.ASCII.GetString(stream.GetBuffer(), 0, (int)stream.Length);
-                        //ImmersalLogger.Log(responseBody);
                         result = JsonUtility.FromJson<U>(responseBody);
                         if (!response.IsSuccessStatusCode)
                         {
@@ -64,7 +63,7 @@ namespace Immersal.REST
         {
             byte[] result = null;
             HttpRequestMessage r = new HttpRequestMessage(HttpMethod.Get, uri);
-
+            
             try
             {
                 using (MemoryStream stream = new MemoryStream())
@@ -109,7 +108,6 @@ namespace Immersal.REST
                     using (var response = await ImmersalSDK.client.DownloadAsync(r, stream, null, cancellationToken))
                     {
                         string responseBody = Encoding.ASCII.GetString(stream.GetBuffer(), 0, (int)stream.Length);
-                        //ImmersalLogger.Log(responseBody);
                         result = JsonUtility.FromJson<U>(responseBody);
                         if (!response.IsSuccessStatusCode)
                         {
@@ -537,6 +535,9 @@ namespace Immersal.REST
         public SDKMapId[] mapIds;
         public byte[] image;
         public int solverType = 0;
+        public Vector3 priorPos;
+        public int priorNNCount;
+        public float priorRadius;
 
         public override async Task<SDKLocalizeResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
@@ -577,6 +578,11 @@ namespace Immersal.REST
                 r.qz = rotation.z;
                 r.qw = rotation.w;
                 r.solverType = this.solverType;
+                r.priorX = priorPos.x;
+                r.priorY = priorPos.y;
+                r.priorZ = priorPos.z;
+                r.priorNeighborCountMin = priorNNCount;
+                r.priorRadius = priorRadius;
                 result = await ImmersalHttp.RequestUpload<SDKLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
             }
 
@@ -601,6 +607,9 @@ namespace Immersal.REST
         public SDKMapId[] mapIds;
         public byte[] image;
         public int solverType = 0;
+        public Vector3 priorPos;
+        public int priorNNCount;
+        public float priorRadius;
 
         public override async Task<SDKGeoPoseResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
@@ -618,6 +627,11 @@ namespace Immersal.REST
             r.qz = rotation.z;
             r.qw = rotation.w;
             r.solverType = this.solverType;
+            r.priorX = priorPos.x;
+            r.priorY = priorPos.y;
+            r.priorZ = priorPos.z;
+            r.priorNeighborCountMin = priorNNCount;
+            r.priorRadius = priorRadius;
 
             SDKGeoPoseResult result = await ImmersalHttp.RequestUpload<SDKGeoPoseRequest, SDKGeoPoseResult>(r, this.image, this.Progress, cancellationToken);
             if (result.error == "none")

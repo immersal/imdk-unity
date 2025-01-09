@@ -27,16 +27,10 @@ namespace Immersal.XR
         int TrackingQuality { get; }
     }
     
-    public interface ICameraData
+    public enum CameraDataFormat
     {
-        IntPtr PixelBuffer { get; }
-        int Width { get; }
-        int Height { get; }
-        Vector4 Intrinsics { get; } 
-        Vector3 CameraPositionOnCapture { get; }
-        Quaternion CameraRotationOnCapture { get; }
-        double[] Distortion { get; }
-        Quaternion Orientation { get; }
+        SingleChannel,
+        RGB
     }
 
     public interface IPlatformConfigureResult
@@ -47,8 +41,15 @@ namespace Immersal.XR
     public interface IPlatformSupport
     {
         Task<IPlatformUpdateResult> UpdatePlatform();
+        Task<IPlatformUpdateResult> UpdatePlatform(IPlatformConfiguration oneShotConfiguration);
         Task<IPlatformConfigureResult> ConfigurePlatform();
+        Task<IPlatformConfigureResult> ConfigurePlatform(IPlatformConfiguration configuration);
         Task StopAndCleanUp();
+    }
+
+    public interface IPlatformConfiguration
+    {
+        CameraDataFormat CameraDataFormat { get; }
     }
     
     #region Simple implementations
@@ -69,17 +70,10 @@ namespace Immersal.XR
     {
         public int TrackingQuality { get; set; }
     }
-    
-    public struct CameraData : ICameraData
+
+    public struct PlatformConfiguration : IPlatformConfiguration
     {
-        public IntPtr PixelBuffer { get; set; }
-        public int Width { get; set; }
-        public int Height { get; set; }
-        public Vector4 Intrinsics { get; set; }  // x = principal point x, y = principal point y, z = focal length x, w = focal length y
-        public Vector3 CameraPositionOnCapture { get; set; }
-        public Quaternion CameraRotationOnCapture { get; set; }
-        public double[] Distortion { get; set; } // not yet used
-        public Quaternion Orientation { get; set; }
+        public CameraDataFormat CameraDataFormat { get; set; }
     }
 
     #endregion

@@ -33,6 +33,8 @@ namespace Immersal.XR
         public static UnityEvent<int> MapRegisteredAndLoaded;
         
         private static Dictionary<int, MapEntry> m_MapEntries = new Dictionary<int, MapEntry>();
+
+        public static bool HasRegisteredMaps { get; private set; }
         
         public static async Task RegisterAndLoadMap(XRMap map, ISceneUpdateable sceneParent)
         {
@@ -52,7 +54,7 @@ namespace Immersal.XR
             {
                 RegisterMap(map, sceneParent);
             }
-
+            
             await map.LocalizationMethod.OnMapRegistered(map);
 
             bool loadSuccess = await LoadMap(map);
@@ -61,7 +63,8 @@ namespace Immersal.XR
             {
                 MapRegisteredAndLoaded?.Invoke(map.mapId);
             }
-            
+
+            UpdateHasRegisteredMaps();
             ImmersalLogger.Log($"RegisterAndLoad for map {map.mapId} complete.");
         }
         
@@ -275,6 +278,11 @@ namespace Immersal.XR
 
             return updateables;
         }
+
+        private static void UpdateHasRegisteredMaps()
+        {
+            HasRegisteredMaps = m_MapEntries.Count > 0;
+        }
         
         #region MapEntries
         
@@ -306,13 +314,10 @@ namespace Immersal.XR
             m_MapEntries.Add(map.mapId, me);
         }
         
-        public static void RemoveMap(int mapId, bool removeFromLocalizer = true, bool destroyObjects = false)
+        public static async void RemoveMap(int mapId, bool removeFromLocalizer = true, bool destroyObjects = false)
         {
             if (TryGetMapEntry(mapId, out MapEntry entry))
             {
-                // Free & remove mapping (if it's loaded)
-                Immersal.Core.FreeMap(mapId);
-                
                 // Update localizer configuration
                 if (removeFromLocalizer)
                 {
@@ -324,8 +329,11 @@ namespace Immersal.XR
                             { method, new XRMap[] { entry.Map } }
                         }
                     };
-                    ImmersalSDK.Instance.Localizer.ConfigureLocalizer(config);
+                    await ImmersalSDK.Instance.Localizer.ConfigureLocalizer(config);
                 }
+                
+                // Free & remove mapping (if it's loaded)
+                Immersal.Core.FreeMap(mapId);
                 
                 // Destroy
                 if (destroyObjects)
@@ -349,6 +357,8 @@ namespace Immersal.XR
                 
                 // Remove entry
                 m_MapEntries.Remove(mapId);
+                
+                UpdateHasRegisteredMaps();
             }
         }
 
@@ -383,6 +393,11 @@ namespace Immersal.XR
         public static bool TryGetMapEntry(int mapId, out MapEntry mapEntry)
         {
             return m_MapEntries.TryGetValue(mapId, out mapEntry);
+        }
+
+        public static bool HasMapEntry(int mapId)
+        {
+            return m_MapEntries.ContainsKey(mapId);
         }
         
         #endregion

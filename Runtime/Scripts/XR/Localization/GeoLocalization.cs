@@ -27,8 +27,16 @@ namespace Immersal.XR
         
 	    [SerializeField]
 	    private SolverType m_SolverType = SolverType.Default;
+	    
+	    [SerializeField]
+	    private int m_PriorNNCount = 0;
+        
+	    [SerializeField]
+	    private float m_PriorRadius = 0f;
 
 	    public ConfigurationMode ConfigurationMode => m_ConfigurationMode;
+	    
+	    private int m_previouslyLocalizedMapId = 0;
 	    
 	    // No options
 	    public IMapOption[] MapOptions => null;
@@ -37,6 +45,10 @@ namespace Immersal.XR
         
 	    public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
 	    {
+		    m_SolverType = configuration.SolverType ?? m_SolverType;
+		    m_PriorNNCount = configuration.PriorNNCount ?? m_PriorNNCount;
+		    m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
+		    
 		    List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
 			
 		    // Add maps
@@ -65,6 +77,8 @@ namespace Immersal.XR
 		    }
 	        
 		    m_MapIds = mapList.ToArray();
+		    
+		    
 		    return Task.FromResult(true);
 	    }
 
@@ -78,19 +92,18 @@ namespace Immersal.XR
 	        if (m_MapIds == null || m_MapIds.Length == 0)
 		        return r;
 
-	        if (cameraData.PixelBuffer == IntPtr.Zero) 
-		        return r;
+	        using IImageData imageData = cameraData.GetImageData();
 	        
 	        JobGeoPoseAsync j = new JobGeoPoseAsync();
 		        
 	        Vector4 intrinsics = cameraData.Intrinsics;
-	        int channels = 1;
+	        int channels = cameraData.Channels;
 	        int width = cameraData.Width;
 	        int height = cameraData.Height;
 		        
-	        int size = width * height;
+	        int size = width * height * channels;
 	        byte[] pixels = new byte[size];
-	        Marshal.Copy(cameraData.PixelBuffer, pixels, 0, size);
+	        Marshal.Copy(imageData.UnmanagedDataPointer, pixels, 0, size);
 
 	        LocalizeInfo locInfo = default;
 
@@ -110,6 +123,22 @@ namespace Immersal.XR
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;			
 	        j.solverType = (int)m_SolverType;
+	        
+	        if (m_SolverType == SolverType.Prior &&
+	            m_previouslyLocalizedMapId != 0 &&
+	            MapManager.TryGetMapEntry(m_previouslyLocalizedMapId, out MapEntry previousMapEntry))
+	        {
+		        Vector3 pos = cameraData.CameraPositionOnCapture;
+		        Vector3 priorPos = previousMapEntry.SceneParent.ToMapSpace(pos, Quaternion.identity).GetPosition();
+		        j.priorPos = priorPos;
+		        j.priorNNCount = m_PriorNNCount;
+		        j.priorRadius = m_PriorRadius;
+	        }
+	        else
+	        {
+		        // previously localized map not found, reset
+		        m_previouslyLocalizedMapId = 0;
+	        }
 	        
 	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
 	        rot.SwitchHandedness();
@@ -151,6 +180,8 @@ namespace Immersal.XR
 			        r.Success = true;
 			        r.MapId = mapId;
 			        r.LocalizeInfo = locInfo;
+
+			        m_previouslyLocalizedMapId = mapId;
 		        }
 	        }
 	        else
@@ -160,7 +191,7 @@ namespace Immersal.XR
 
 	        return r;
         }
-        
+ 
         public Task StopAndCleanUp()
         {
 	        m_MapIds = Array.Empty<SDKMapId>();

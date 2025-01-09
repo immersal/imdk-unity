@@ -28,7 +28,15 @@ namespace Immersal.XR
 	    [SerializeField]
 	    private SolverType m_SolverType = SolverType.Default;
 
+	    [SerializeField]
+	    private int m_PriorNNCount = 0;
+        
+	    [SerializeField]
+	    private float m_PriorRadius = 0f;
+	    
 	    public ConfigurationMode ConfigurationMode => m_ConfigurationMode;
+	    
+	    private int m_previouslyLocalizedMapId = 0;
 	    
 	    // No options
 	    public IMapOption[] MapOptions => null;
@@ -37,6 +45,10 @@ namespace Immersal.XR
         
 		public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
 		{
+			m_SolverType = configuration.SolverType ?? m_SolverType;
+			m_PriorNNCount = configuration.PriorNNCount ?? m_PriorNNCount;
+			m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
+			
 			List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
 			
 			// Add maps
@@ -78,38 +90,53 @@ namespace Immersal.XR
 	        if (m_MapIds == null || m_MapIds.Length == 0)
 		        return r;
 	        
-            if (cameraData.PixelBuffer == IntPtr.Zero)
-	            return r;
-            
-            JobLocalizeServerAsync j = new JobLocalizeServerAsync();
-		        
+	        JobLocalizeServerAsync j = new JobLocalizeServerAsync();
+
 	        Vector4 intrinsics = cameraData.Intrinsics;
-	        int channels = 1;
+	        int channels = cameraData.Channels;
 	        int width = cameraData.Width;
 	        int height = cameraData.Height;
-		        
-	        int size = width * height;
-	        byte[] pixels = new byte[size];
-	        Marshal.Copy(cameraData.PixelBuffer, pixels, 0, size);
 
-	        LocalizeInfo locInfo = default;
+	        byte[] capture = new byte[channels * width * height + 8192];
 
 	        float startTime = Time.realtimeSinceStartup;
-		        
-	        Task<(byte[], CaptureInfo)> t = Task.Run(() =>
+	        using (IImageData imageData = cameraData.GetImageData())
 	        {
-		        byte[] capture = new byte[channels * width * height + 8192];
-		        CaptureInfo info = Immersal.Core.CaptureImage(capture, capture.Length, pixels, width, height, channels);
-		        Array.Resize(ref capture, info.captureSize);
-		        return (capture, info);
-	        });
+		        int size = width * height * channels;
+		        byte[] pixels = new byte[size];
+		        Marshal.Copy(imageData.UnmanagedDataPointer, pixels, 0, size);
+		        
+		        Task<(byte[], CaptureInfo)> t = Task.Run(() =>
+		        {
+			        CaptureInfo info =
+				        Immersal.Core.CaptureImage(capture, capture.Length, pixels, width, height, channels);
+			        Array.Resize(ref capture, info.captureSize);
+			        return (capture, info);
+		        });
 
-	        await t;
+		        await t;
+	        }
 
-	        j.image = t.Result.Item1;
+	        j.image = capture; //t.Result.Item1;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;
 			j.solverType = (int)m_SolverType;
+			
+			if (m_SolverType == SolverType.Prior &&
+			    m_previouslyLocalizedMapId != 0 &&
+			    MapManager.TryGetMapEntry(m_previouslyLocalizedMapId, out MapEntry entry))
+			{
+				Vector3 pos = cameraData.CameraPositionOnCapture;
+				Vector3 priorPos = entry.SceneParent.ToMapSpace(pos, Quaternion.identity).GetPosition();
+				j.priorPos = priorPos;
+				j.priorNNCount = m_PriorNNCount;
+				j.priorRadius = m_PriorRadius;
+			}
+			else
+			{
+				// previously localized map not found, reset
+				m_previouslyLocalizedMapId = 0;
+			}
 
 	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
 	        rot.SwitchHandedness();
@@ -132,7 +159,7 @@ namespace Immersal.XR
 			        m.m10 = result.r10; m.m11 = result.r11; m.m12 = result.r12;
 			        m.m20 = result.r20; m.m21 = result.r21; m.m22 = result.r22;
 
-			        locInfo = new LocalizeInfo
+			        LocalizeInfo locInfo = new LocalizeInfo
 			        {
 				        mapId = mapId,
 				        position = new Vector3(result.px, result.py, result.pz),
@@ -143,6 +170,8 @@ namespace Immersal.XR
 			        r.Success = true;
 			        r.MapId = mapId;
 			        r.LocalizeInfo = locInfo;
+		
+				    m_previouslyLocalizedMapId = mapId;
 		        }
 	        }
 	        else
@@ -152,7 +181,7 @@ namespace Immersal.XR
 
 	        return r;
         }
-        
+      
         public Task StopAndCleanUp()
         {
 	        m_MapIds = Array.Empty<SDKMapId>();
