@@ -10,6 +10,7 @@ Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -17,13 +18,30 @@ namespace Immersal.XR
 {
     public class DataProcessingChain<T> : IDataProcessingChain<T> where T : class
     {
-        private IDataProcessor<T>[] m_DataProcessors;
+        //private IDataProcessor<T>[] m_DataProcessors;
+        private List<IDataProcessor<T>> m_DataProcessors;
         private T m_CurrentDataInChain = null;
         private bool m_IsProcessing = false;
 
+        public DataProcessingChain()
+        {
+            m_DataProcessors = new List<IDataProcessor<T>>();
+        }
+        
         public DataProcessingChain(IDataProcessor<T>[] dataProcessors)
         {
-            m_DataProcessors = dataProcessors;
+            //m_DataProcessors = dataProcessors;
+            m_DataProcessors = new List<IDataProcessor<T>>(dataProcessors);
+        }
+
+        public void AddProcessor(IDataProcessor<T> processor)
+        {
+            m_DataProcessors.Add(processor);
+        }
+
+        public void RemoveProcessor(IDataProcessor<T> processor)
+        {
+            m_DataProcessors.Remove(processor);
         }
 
         public async Task ProcessNewData(T inputData)

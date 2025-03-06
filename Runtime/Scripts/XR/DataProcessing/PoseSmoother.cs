@@ -24,7 +24,7 @@ namespace Immersal.XR
         Cubic
     }
     
-    public class NewPoseSmoother : MonoBehaviour, IDataProcessor<SceneUpdateData>
+    public class PoseSmoother : MonoBehaviour, IDataProcessor<SceneUpdateData>
     {
         [Header("Smoothing")]
         [SerializeField, Tooltip("Classic slow approach method or linear, sinusoidal or cubic timing function.")]

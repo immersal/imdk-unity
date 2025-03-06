@@ -48,12 +48,22 @@ namespace Immersal.XR
             m_TransformToUpdate = transform;
             m_InitialPose = Matrix4x4.TRS(m_TransformToUpdate.position, m_TransformToUpdate.rotation, Vector3.one);
             m_CurrentData = null;
+            
+            if (m_DataProcessors != null)
+            {
+                m_DataProcessingChain = new DataProcessingChain<SceneUpdateData>(SceneDataProcessors);
+            }
+            else
+            {
+                m_DataProcessingChain =
+                    new DataProcessingChain<SceneUpdateData>();
+            }
         }
         
         private void Start()
         {
-            if (m_DataProcessors != null)
-                m_DataProcessingChain = new DataProcessingChain<SceneUpdateData>(SceneDataProcessors);
+            
+                
         }
         
         private async void Update()
@@ -106,6 +116,18 @@ namespace Immersal.XR
             {
                 await m_DataProcessingChain.ResetProcessors();
             }
+        }
+
+        public void AddSceneDataProcessor(IDataProcessor<SceneUpdateData>
+            processor)
+        {
+            m_DataProcessingChain.AddProcessor(processor);
+        }
+        
+        public void RemoveSceneDataProcessor(IDataProcessor<SceneUpdateData>
+            processor)
+        {
+            m_DataProcessingChain.RemoveProcessor(processor);
         }
     }
 }

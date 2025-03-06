@@ -1,6 +1,6 @@
 {
   "name": "com.immersal.core",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "displayName": "Immersal SDK",
   "description": "Immersal Unity SDK is a toolkit for developing spatial augmented reality experiences with the Unity engine.",
   "unity": "2022.3",

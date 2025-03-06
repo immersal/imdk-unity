@@ -11,6 +11,7 @@ Contact sales@immersal.com for licensing requests.
 
 #if UNITY_EDITOR
 using UnityEditor;
+using UnityEngine;
 
 namespace Immersal.XR
 {
@@ -20,6 +21,10 @@ namespace Immersal.XR
         public override void OnInspectorGUI()
         {
             EditorGUILayout.HelpBox("Place XR Maps and all content under this object.\n(you can also use a custom implementation of ISceneParent)", MessageType.Info);
+            if (Application.isPlaying)
+            {
+                EditorGUILayout.HelpBox("DataProcessors added at runtime are not serialized and thus do not show up in the inspector.", MessageType.Warning);
+            }
             DrawDefaultInspector();
         }
     }

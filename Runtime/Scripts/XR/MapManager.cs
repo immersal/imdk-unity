@@ -16,6 +16,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Immersal.REST;
+using Unity.XR.CoreUtils;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
@@ -198,9 +199,16 @@ namespace Immersal.XR
             {
                 if (parameters.MetadataGetResult == null)
                     return result; // fail
-                map.Configure(parameters.MetadataGetResult.Value);
+                map.Configure(parameters.MetadataGetResult.Value); // applies metadata
             }
             
+            // Alignment
+            // Note: assumes alignment is already defined with metadata/custom data 
+            if (parameters.ApplyMapAlignment)
+            {
+                map.ApplyAlignment();
+            }
+
             // Localization method
             
             // If null, try to find based on Type
@@ -817,6 +825,26 @@ namespace Immersal.XR
         public Vector3 Position;
         public Quaternion Rotation;
         public Vector3 Scale;
+
+        public Matrix4x4 ApplyRelation(Matrix4x4 input)
+        {
+            Vector3 inPos = input.GetPosition();
+            Quaternion inRot = input.rotation;
+            Matrix4x4 offsetNoScale = Matrix4x4.TRS(Position, Rotation, Vector3.one);
+            Vector3 scaledPos = Vector3.Scale(inPos, Scale);
+            return offsetNoScale * Matrix4x4.TRS(scaledPos, inRot, Vector3.one);
+        }
+        
+        public Matrix4x4 ApplyInverseRelation(Matrix4x4 input)
+        {
+            Matrix4x4 offsetNoScale = Matrix4x4.TRS(Position, Rotation, Vector3.one);
+            Matrix4x4 offsetNoScaleInverse = offsetNoScale.inverse;
+            Matrix4x4 intermediate = offsetNoScaleInverse * input;
+            Vector3 scaledPos = intermediate.GetPosition();
+            Quaternion rot = intermediate.rotation;
+            Vector3 unscaledPos = scaledPos.SafeDivide(Scale);
+            return Matrix4x4.TRS(unscaledPos, rot, Vector3.one);
+        }
     }
 
     public class MapCreationParameters
@@ -828,6 +856,7 @@ namespace Immersal.XR
         public ILocalizationMethod LocalizationMethod; // Optional
         public Type LocalizationMethodType = typeof(DeviceLocalization); // Necessary if above is null
         public IMapOption[] MapOptions; // Optional
+        public bool ApplyMapAlignment;
     }
 
     public class MapCreationResult

@@ -22,6 +22,7 @@ namespace Immersal.XR
         byte[] GetBytes();
         CameraData Copy(IImageData imageData);
         public void ReleaseReference();
+        public void CheckReferences();
         int Width { get; }
         int Height { get; }
         int Channels { get; }
@@ -71,6 +72,11 @@ namespace Immersal.XR
         public void ReleaseReference()
         {
             Interlocked.Decrement(ref m_ReferenceCount);
+            CheckReferences();
+        }
+
+        public void CheckReferences()
+        {
             if (m_ReferenceCount <= 0)
             {
                 Dispose();

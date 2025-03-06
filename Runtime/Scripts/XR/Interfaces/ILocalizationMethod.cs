@@ -13,6 +13,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Immersal.REST;
+using UnityEngine;
 
 namespace Immersal.XR
 {
@@ -28,7 +29,9 @@ namespace Immersal.XR
         XRMap[] MapsToAdd { get; }
         XRMap[] MapsToRemove { get; }
         SolverType? SolverType { get; }
-        int? PriorNNCount { get; }
+        int? PriorNNCountMin { get; }
+        int? PriorNNCountMax { get; }
+        Vector3? PriorScale { get; }
         float? PriorRadius { get; }
     }
 

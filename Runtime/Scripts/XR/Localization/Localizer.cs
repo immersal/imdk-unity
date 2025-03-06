@@ -212,8 +212,11 @@ namespace Immersal.XR
         {
 	        // Localization is already running -> bail out
 	        if (m_IsLocalizing)
+	        {
+		        cameraData.CheckReferences();
 		        return new LocalizationResults { Results = Array.Empty<ILocalizationResult>() };
-
+	        }
+		        
 		    m_IsLocalizing = true;
 	        List<ILocalizationResult> results = new List<ILocalizationResult>();
 
@@ -436,7 +439,11 @@ namespace Immersal.XR
 	    public XRMap[] MapsToAdd { get; set; }
 	    public XRMap[] MapsToRemove { get; set; }
 	    public SolverType? SolverType { get; set; }
+	    [ObsoleteAttribute("PriorNNCount is obsolete. Use PriorNNCountMin/Max instead.", false)]
 	    public int? PriorNNCount { get; set; }
+	    public int? PriorNNCountMin { get; set; }
+	    public int? PriorNNCountMax { get; set; }
+	    public Vector3? PriorScale { get; set; }
 	    public float? PriorRadius { get; set; }
     }
 }

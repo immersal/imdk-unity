@@ -17,11 +17,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Immersal.REST;
 using UnityEngine;
+using UnityEngine.Events;
 
 namespace Immersal.XR
 {
     public class ServerLocalization : MonoBehaviour, ILocalizationMethod
     {
+	    // Note:
+	    // Custom editor does not draw default inspector
+	    
 	    [SerializeField]
 	    private ConfigurationMode m_ConfigurationMode = ConfigurationMode.WhenNecessary;
         
@@ -29,12 +33,20 @@ namespace Immersal.XR
 	    private SolverType m_SolverType = SolverType.Default;
 
 	    [SerializeField]
-	    private int m_PriorNNCount = 0;
+	    private int m_PriorNNCountMin = 60;
         
+	    [SerializeField]
+	    private int m_PriorNNCountMax = 720;
+
+	    [SerializeField]
+	    private Vector3 m_PriorScale = Vector3.one;
+	    
 	    [SerializeField]
 	    private float m_PriorRadius = 0f;
 	    
 	    public ConfigurationMode ConfigurationMode => m_ConfigurationMode;
+
+	    public UnityEvent<float> OnProgress;
 	    
 	    private int m_previouslyLocalizedMapId = 0;
 	    
@@ -46,7 +58,9 @@ namespace Immersal.XR
 		public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
 		{
 			m_SolverType = configuration.SolverType ?? m_SolverType;
-			m_PriorNNCount = configuration.PriorNNCount ?? m_PriorNNCount;
+			m_PriorNNCountMin = configuration.PriorNNCountMin ?? m_PriorNNCountMin;
+			m_PriorNNCountMax = configuration.PriorNNCountMax ?? m_PriorNNCountMax;
+			m_PriorScale = configuration.PriorScale ?? m_PriorScale;
 			m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
 			
 			List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
@@ -91,6 +105,7 @@ namespace Immersal.XR
 		        return r;
 	        
 	        JobLocalizeServerAsync j = new JobLocalizeServerAsync();
+	        j.Progress.ProgressChanged += OnCurrentJobProgress;
 
 	        Vector4 intrinsics = cameraData.Intrinsics;
 	        int channels = cameraData.Channels;
@@ -120,16 +135,20 @@ namespace Immersal.XR
 	        j.image = capture; //t.Result.Item1;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;
-			j.solverType = (int)m_SolverType;
+			j.solverType = m_SolverType == SolverType.Prior ? 4 : 0;
 			
 			if (m_SolverType == SolverType.Prior &&
 			    m_previouslyLocalizedMapId != 0 &&
 			    MapManager.TryGetMapEntry(m_previouslyLocalizedMapId, out MapEntry entry))
 			{
 				Vector3 pos = cameraData.CameraPositionOnCapture;
-				Vector3 priorPos = entry.SceneParent.ToMapSpace(pos, Quaternion.identity).GetPosition();
+				Matrix4x4 mapPoseWithRelation = entry.SceneParent.ToMapSpace(pos, Quaternion.identity);
+				Vector3 priorPos = entry.Relation.ApplyInverseRelation(mapPoseWithRelation).GetPosition();
+				priorPos.SwitchHandedness();
 				j.priorPos = priorPos;
-				j.priorNNCount = m_PriorNNCount;
+				j.priorNNCountMin = m_PriorNNCountMin;
+				j.priorNNCountMax = m_PriorNNCountMax;
+				j.priorScale = m_PriorScale;
 				j.priorRadius = m_PriorRadius;
 			}
 			else
@@ -179,6 +198,7 @@ namespace Immersal.XR
 		        ImmersalLogger.Log($"Localization attempt failed after {elapsedTime} seconds");
 	        }
 
+	        j.Progress.ProgressChanged -= OnCurrentJobProgress;
 	        return r;
         }
       
@@ -191,6 +211,11 @@ namespace Immersal.XR
         public Task OnMapRegistered(XRMap map)
         {
 	        return Task.CompletedTask;
+        }
+
+        private void OnCurrentJobProgress(object sender, float value)
+        {
+	        OnProgress?.Invoke(value);
         }
     }
 }

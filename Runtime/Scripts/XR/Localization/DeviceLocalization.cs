@@ -30,6 +30,9 @@ namespace Immersal.XR
     [Serializable]
     public class DeviceLocalization : MonoBehaviour, ILocalizationMethod
     {
+        // Note:
+        // Custom editor does not draw default inspector
+        
         [SerializeField]
         private ConfigurationMode m_ConfigurationMode = ConfigurationMode.Always;
         
@@ -56,7 +59,7 @@ namespace Immersal.XR
         public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
         {
             m_SolverType = configuration.SolverType ?? m_SolverType;
-            m_PriorNNCount = configuration.PriorNNCount ?? m_PriorNNCount;
+            m_PriorNNCount = configuration.PriorNNCountMin ?? m_PriorNNCount;
             m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
             
             List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
@@ -105,7 +108,9 @@ namespace Immersal.XR
                 MapManager.TryGetMapEntry(m_previouslyLocalizedMapId, out MapEntry entry))
             {
                     Vector3 pos = cameraData.CameraPositionOnCapture;
-                    Vector3 priorPos = entry.SceneParent.ToMapSpace(pos, Quaternion.identity).GetPosition();
+                    Matrix4x4 mapPoseWithRelation = entry.SceneParent.ToMapSpace(pos, Quaternion.identity);
+                    Vector3 priorPos = entry.Relation.ApplyInverseRelation(mapPoseWithRelation).GetPosition();
+                    priorPos.SwitchHandedness();
                     locInfo = await Task.Run(() => Immersal.Core.icvLocalizeImageWithPrior(cameraData, imageData.UnmanagedDataPointer, ref priorPos, m_PriorNNCount, m_PriorRadius), cancellationToken);
             }
             else

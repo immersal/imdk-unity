@@ -19,5 +19,7 @@ namespace Immersal.XR
         public Task UpdateChain();
         public T GetCurrentData();
         public Task ResetProcessors();
+        public void AddProcessor(IDataProcessor<T> processor);
+        public void RemoveProcessor(IDataProcessor<T> processor);
     }
 }

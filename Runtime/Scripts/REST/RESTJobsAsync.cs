@@ -536,7 +536,9 @@ namespace Immersal.REST
         public byte[] image;
         public int solverType = 0;
         public Vector3 priorPos;
-        public int priorNNCount;
+        public Vector3 priorScale = Vector3.one;
+        public int priorNNCountMin = 60;
+        public int priorNNCountMax = 720;
         public float priorRadius;
 
         public override async Task<SDKLocalizeResult> RunJobAsync(CancellationToken cancellationToken = default)
@@ -581,7 +583,11 @@ namespace Immersal.REST
                 r.priorX = priorPos.x;
                 r.priorY = priorPos.y;
                 r.priorZ = priorPos.z;
-                r.priorNeighborCountMin = priorNNCount;
+                r.priorNeighborCountMin = priorNNCountMin;
+                r.priorNeighborCountMax = priorNNCountMax;
+                r.priorScaleX = priorScale.x;
+                r.priorScaleY = priorScale.y;
+                r.priorScaleZ = priorScale.z;
                 r.priorRadius = priorRadius;
                 result = await ImmersalHttp.RequestUpload<SDKLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
             }
@@ -608,7 +614,9 @@ namespace Immersal.REST
         public byte[] image;
         public int solverType = 0;
         public Vector3 priorPos;
-        public int priorNNCount;
+        public Vector3 priorScale = Vector3.one;
+        public int priorNNCountMin = 60;
+        public int priorNNCountMax = 720;
         public float priorRadius;
 
         public override async Task<SDKGeoPoseResult> RunJobAsync(CancellationToken cancellationToken = default)
@@ -630,7 +638,11 @@ namespace Immersal.REST
             r.priorX = priorPos.x;
             r.priorY = priorPos.y;
             r.priorZ = priorPos.z;
-            r.priorNeighborCountMin = priorNNCount;
+            r.priorNeighborCountMin = priorNNCountMin;
+            r.priorNeighborCountMax = priorNNCountMax;
+            r.priorScaleX = priorScale.x;
+            r.priorScaleY = priorScale.y;
+            r.priorScaleZ = priorScale.z;
             r.priorRadius = priorRadius;
 
             SDKGeoPoseResult result = await ImmersalHttp.RequestUpload<SDKGeoPoseRequest, SDKGeoPoseResult>(r, this.image, this.Progress, cancellationToken);

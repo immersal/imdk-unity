@@ -55,7 +55,7 @@ namespace Immersal.Samples
             {
                 localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
                 {
-                    PriorNNCount = newCount
+                    PriorNNCountMin = newCount
                 });
             }
         }

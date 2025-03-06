@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.1.1] - 2025-03-06
+
+### Added
+- MapManager.TryCreateMap can now apply map alignment at runtime
+- Server/GeoLocalization now exposes upload Progress via a public UnityEvent
+- ImmersalSDK now has a toggle for automatic initialization on Awake
+- ImmersalSession has additional toggle for restarting after reset
+- SceneDataProcessors can now be added/removed at runtime
+- Custom editor for PoseFilter
+- Custom editors for the provided localization method implementations
+- More public properties for ImmersalSession
+
+### Fixed
+- PoseFilter bug causing unstable filtering
+- CameraData not disposed when unused by the Localizer
+- Prior localization using faulty poses
+- Prior localization missing REST parameters
+- TrackingAnalyzer tracking quality bug when dropping to 0
+- Some TrackingAnalyzer events not firing correctly
+
 ## [2.1.0] - 2025-01-09
 
 ### Added

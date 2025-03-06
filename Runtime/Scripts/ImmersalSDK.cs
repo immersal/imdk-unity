@@ -29,7 +29,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.1.0";
+		public static string sdkVersion = "2.1.1";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		
@@ -75,8 +75,11 @@ namespace Immersal
 		#endregion
 
         // Configuration properties
-        
+
         [Header("Configuration")]
+        [SerializeField]
+        [Tooltip("Initialize the SDK on Awake")]
+        private bool m_InitializeAutomatically = true;
         
         [SerializeField]
         [Tooltip("Application target frame rate")]
@@ -192,17 +195,8 @@ namespace Immersal
 
         #endregion
         
-        private async void Awake()
+        private void Awake()
         {
-	        await Initialize();
-        }
-        
-        private async Task Initialize()
-        {
-	        ImmersalLogger.Level = m_LoggingLevel;
-	        
-	        ImmersalLogger.Log("Initializing ImmersalSDK", ImmersalLogger.LoggingLevel.Verbose);   
-	        
 	        if (instance == null)
 	        {
 		        instance = this;
@@ -214,6 +208,15 @@ namespace Immersal
 		        UnityEngine.Object.DestroyImmediate(this);
 		        return;
 	        }
+	        
+	        if (m_InitializeAutomatically)
+				_ = Initialize();
+        }
+        
+        public async Task Initialize()
+        {
+	        ImmersalLogger.Level = m_LoggingLevel;
+	        ImmersalLogger.Log("Initializing ImmersalSDK", ImmersalLogger.LoggingLevel.Verbose);   
 	        
 	        if (PlatformSupport == null || Localizer == null || SceneUpdater == null || TrackingAnalyzer == null)
 	        {

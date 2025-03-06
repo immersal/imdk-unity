@@ -9,157 +9,149 @@ third-parties for commercial purposes without written permission of Immersal Ltd
 Contact sales@immersal.com for licensing requests.
 ===============================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
 namespace Immersal.XR
 {
+	public enum FilterMethod
+	{
+		Default,
+		Advanced,
+		Legacy,
+	}
+	
     public class PoseFilter : MonoBehaviour, IDataProcessor<SceneUpdateData>
     {
-	    [Header("Experimental options")]
+	    // Note:
+	    // Custom editor does not draw default inspector
+	    
+	    [SerializeField] private FilterMethod m_FilterMethod = FilterMethod.Default;
+	    [SerializeField] private int m_HistorySize = 8;
 	    [SerializeField] private bool m_UseConfidence = false;
-        [SerializeField] private float m_ConfidenceMax = 20f;
-        [SerializeField] private float m_ConfidenceImpact = 0.5f;
-        
-        // processing should be done in map space,
-        // option left here for testing
-        private const bool m_ProcessInMapSpace = true;
-        
-        private const int m_HistorySize = 8;
-        
-		private Vector3[] m_P = new Vector3[m_HistorySize];
-		private Vector3[] m_X = new Vector3[m_HistorySize];
-		private Vector3[] m_Z = new Vector3[m_HistorySize];
-		private float[] m_C = new float[m_HistorySize];
-		
-		private Vector3[] m_tP = new Vector3[m_HistorySize];
-		private Vector3[] m_tX = new Vector3[m_HistorySize];
-		private Vector3[] m_tZ = new Vector3[m_HistorySize];
-		
-		private uint m_Samples = 0;
-		
+	    [SerializeField] private float m_ConfidenceMax = 50f;
+	    [SerializeField] private float m_ConfidenceImpact = 0.5f;
+	    
+	    private Dictionary<int, IImmersalFilter> m_MapFilters;
+	    private IImmersalFilter m_LegacyFilter = new AVTFilter();
 		private bool m_HasProcessedData = false;
 		private SceneUpdateData m_CurrentData;
-		
-		public void InvalidateHistory()
+
+		public FilterMethod FilterMethod
 		{
-			m_Samples = 0;
+			get => m_FilterMethod;
+			set => m_FilterMethod = value;
 		}
 
-		public bool IsValid()
+		public int HistorySize
 		{
-			return m_Samples > 1;
+			get => m_HistorySize;
+			set => m_HistorySize = value;
+		}
+
+		public bool UseConfidence
+		{
+			get => m_UseConfidence;
+			set => m_UseConfidence = value;
+		}
+
+		public float ConfidenceMax
+		{
+			get => m_ConfidenceMax;
+			set => m_ConfidenceMax = value;
+		}
+
+		public float ConfidenceImpact
+		{
+			get => m_ConfidenceImpact;
+			set => m_ConfidenceImpact = value;
+		}
+
+		private void OnValidate()
+		{
+			m_HistorySize = m_FilterMethod == FilterMethod.Advanced ? Mathf.Max(2, m_HistorySize) : 8;
+			m_UseConfidence = m_UseConfidence && m_FilterMethod == FilterMethod.Advanced;
+		}
+
+		private void Awake()
+		{
+			m_MapFilters = new Dictionary<int, IImmersalFilter>();
 		}
 
 		private void ProcessData(SceneUpdateData data)
 		{
-			Matrix4x4 pose = data.Pose;
-			if (m_ProcessInMapSpace)
-				pose = data.Pose.inverse * data.TrackerSpace;
-			float confidence = data.LocalizeInfo.confidence;
-			int idx = (int)(m_Samples % m_HistorySize);
-			
-			m_P[idx] = pose.GetColumn(3);
-			m_X[idx] = pose.GetColumn(0);
-			m_Z[idx] = pose.GetColumn(2);
-
-			float c = 1f;
-			if (m_UseConfidence)
+			// Legacy method
+			if (m_FilterMethod == FilterMethod.Legacy)
 			{
-				float impact = Mathf.Clamp01(m_ConfidenceImpact);
-				float cc = Mathf.Clamp01(confidence / m_ConfidenceMax);
-				c = 1f - impact + (cc * impact * 2f);
+				ProcessDataLegacy(data);
+				return;
 			}
-			m_C[idx] = c;
-			m_Samples++;
-			uint n = m_Samples > m_HistorySize ? m_HistorySize : m_Samples;
 			
-			Vector3 position = Filter(m_P, n, m_C, idx);
-			Vector3 x = Vector3.Normalize(Filter(m_X, n, m_C, idx));
-			Vector3 z = Vector3.Normalize(Filter(m_Z, n, m_C, idx));
-			Vector3 up = Vector3.Normalize(Vector3.Cross(z, x));
-			Quaternion rotation = Quaternion.LookRotation(z, up);
+			// We want to do filtering in a specific relative space
+			Matrix4x4 pose = PreFilterTransform(data);
+			
+			int mapID = data.MapEntry.Map.mapId;
 
-			if (m_ProcessInMapSpace)
+			// Use existing filter or create new
+			if (m_MapFilters.TryGetValue(mapID, out IImmersalFilter filter))
 			{
-				Matrix4x4 filteredPose = Matrix4x4.TRS(position, rotation, Vector3.one);
-				
-				// Filter TrackerSpace
-				m_tP[idx] = data.TrackerSpace.GetColumn(3);
-				m_tX[idx] = data.TrackerSpace.GetColumn(0);
-				m_tZ[idx] = data.TrackerSpace.GetColumn(2);
-			
-				Vector3 tpos = Filter(m_tP, n, m_C, idx);
-				Vector3 tx = Vector3.Normalize(Filter(m_tX, n, m_C, idx));
-				Vector3 tz = Vector3.Normalize(Filter(m_tZ, n, m_C, idx));
-				Vector3 tup = Vector3.Normalize(Vector3.Cross(tz, tx));
-				Quaternion trot = Quaternion.LookRotation(tz, tup);
-				Matrix4x4 filteredTrackerSpace = Matrix4x4.TRS(tpos, trot, Vector3.one);
-
-				data.Pose = filteredTrackerSpace * filteredPose.inverse;
+				pose = filter.Filter(pose, data);
 			}
 			else
 			{
-				data.Pose = Matrix4x4.TRS(position, rotation, Vector3.one);
+				m_MapFilters.Add(mapID, CreateFilter());
+				pose = m_MapFilters[mapID].Filter(pose, data);
 			}
-	
+
+			// Filtered pose must be transformed to correct space
+			pose = PostFilterTransform(pose, data);
+			
+			data.Pose = pose;
+			
 			m_CurrentData = data;
 			m_HasProcessedData = true;
 		}
 
-		private Vector3 Filter(Vector3[] buf, uint n, float[] confidence, int idx)
+		private IImmersalFilter CreateFilter()
 		{
-			return FilterAVT(buf, n, confidence, idx);
+			return new AVTFilter(m_HistorySize, m_UseConfidence, m_ConfidenceMax, m_ConfidenceImpact);
 		}
 
-		private Vector3 FilterAVT(Vector3[] buf, uint n, float[] confidence, int idx)
+		private void ProcessDataLegacy(SceneUpdateData data)
 		{
-			Vector3 mean = Vector3.zero;
-			float totalWeight = 0f;
+			Matrix4x4 pose = m_LegacyFilter.Filter(data.Pose, data);
+			data.Pose = pose;
+			m_CurrentData = data;
+			m_HasProcessedData = true;
+		}
 
-			// calculate weighted mean
-			for (uint i = 0; i < n; i++)
-			{
-				mean += buf[i] * confidence[i];
-				totalWeight += confidence[i];
-			}
-			mean /= totalWeight;
+		// Gets localized pose in tracker space without MapRelation
+		private Matrix4x4 PreFilterTransform(SceneUpdateData data)
+		{
+			Vector3 pos = data.LocalizeInfo.position;
+			Quaternion rot = data.LocalizeInfo.rotation;
+			rot *= data.CameraData.Orientation;
+			pos.SwitchHandedness();
+			rot.SwitchHandedness();
+			Matrix4x4 imSpacePose = Matrix4x4.TRS(pos, rot, Vector3.one);
+			return data.TrackerSpace * imSpacePose.inverse;
+		}
+
+		// Applies MapRelation in cloud space and transforms back to tracker space
+		private Matrix4x4 PostFilterTransform(Matrix4x4 pose, SceneUpdateData data)
+		{
+			Matrix4x4 imSpace = pose.inverse * data.TrackerSpace;
+			Vector3 imPos = imSpace.GetColumn(3);
+			Quaternion imRot = imSpace.rotation;
 			
-			// return mean when sample count is low
-			if (n <= 2)
-				return mean;
+			MapToSpaceRelation mo = data.MapEntry.Relation;
+			Matrix4x4 offsetNoScale = Matrix4x4.TRS(mo.Position, mo.Rotation, Vector3.one);
+			Vector3 scaledPos = Vector3.Scale(imPos, mo.Scale);
+			Matrix4x4 result = offsetNoScale * Matrix4x4.TRS(scaledPos, imRot, Vector3.one);
 			
-			// calculate standard deviation
-			float s = 0;
-			for (uint i = 0; i < n; i++)
-			{
-				Vector3 value = buf[i] * confidence[i];
-				s += Vector3.SqrMagnitude(value - mean);
-			}
-			s /= totalWeight;
-			
-			// calculate a mean of samples with error less than or equal to st dev
-			Vector3 avg = Vector3.zero;
-			totalWeight = 0f;
-			for (uint i = 0; i < n; i++)
-			{
-				// for each sample, get error
-				Vector3 value = buf[i] * confidence[i];
-				float d = Vector3.SqrMagnitude(value - mean);
-				
-				// if error <= st dev, count it in
-				if (d <= s)
-				{
-					avg += buf[i] * confidence[i];
-					totalWeight += confidence[i];
-				}
-			}
-			if (totalWeight > 0)
-			{
-				avg /= totalWeight;
-				return avg;
-			}
-			return mean;
+			return data.TrackerSpace * result.inverse;
 		}
 		
 		public Task<SceneUpdateData> ProcessData(SceneUpdateData data, DataProcessorTrigger trigger)
@@ -179,9 +171,24 @@ namespace Immersal.XR
 
 		public Task ResetProcessor()
 		{
-			InvalidateHistory();
+			foreach (KeyValuePair<int,IImmersalFilter> keyValuePair in m_MapFilters)
+			{
+				keyValuePair.Value.Reset();
+			}
+			m_LegacyFilter.Reset();
 			return Task.CompletedTask;
 		}
-    }
 
+		public void ForgetIndividualFilters()
+		{
+			m_MapFilters = new Dictionary<int, IImmersalFilter>();
+		}
+    }
+    
+    public interface IImmersalFilter
+    {
+	    public Matrix4x4 Filter(Matrix4x4 pose, SceneUpdateData data);
+	    public void Reset();
+    }
 }
+

@@ -18,7 +18,7 @@ namespace Immersal.XR
     public class TrackingAnalyzer : MonoBehaviour, ITrackingAnalyzer
     {
         [SerializeField]
-        private float m_SecondsToDecayPose = 2f;
+        private float m_SecondsToDecayPose = 10f;
 
         // LocalizationResults might contain multiple fails / success results.
         // By default these are combined to one attempt and one fail/success.
@@ -33,7 +33,7 @@ namespace Immersal.XR
         
         // These actions are invoked when tracking quality is high enough or drops to 0.
         // Only invoked once when the change happens. Invoking one resets the other.
-        // OnTrackingLost will not be invoked before one successful localization.
+        // OnTrackingLost will not be invoked before TrackingWell has occured.
         // The bool value is true on the first ever invocation, otherwise false.
         public UnityEvent<bool> OnTrackingWell;
         public UnityEvent<bool> OnTrackingLost;
@@ -62,7 +62,6 @@ namespace Immersal.XR
             }
             else if (platformStatus.TrackingQuality > 0 && !m_AllowPlatformTrackingLostInvoke)
             {
-                ImmersalLogger.Log("Platform tracking OK.");
                 m_AllowPlatformTrackingLostInvoke = true;
             }
             
@@ -130,8 +129,6 @@ namespace Immersal.XR
             if (m_HasPose && m_CurrentResult < 1)
             {
                 m_HasPose = false;
-                m_PreviousResult = 0;
-                m_CurrentResult = 0;
                 if (m_TrackingWell)
                 {
                     OnTrackingLost?.Invoke(m_NeverLostTracking);
@@ -140,7 +137,7 @@ namespace Immersal.XR
                 }
             }
             // Tracking well
-            else if (m_HasPose && m_PreviousResult < m_CurrentResult && m_CurrentResult > 2 && !m_TrackingWell)
+            else if (m_HasPose && diffResults > 0 && m_CurrentResult > 2 && !m_TrackingWell)
             {
                 OnTrackingWell?.Invoke(m_NeverTrackedWell);
                 m_NeverTrackedWell = false;

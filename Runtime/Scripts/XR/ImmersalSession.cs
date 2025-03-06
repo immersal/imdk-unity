@@ -40,6 +40,9 @@ namespace Immersal.XR
 		[Tooltip("Reset stats and ARSpace filters on application pause")] [SerializeField]
 		private bool m_ResetOnPause = true;
 
+		[Tooltip("Restart session automatically after a reset")] [SerializeField]
+		private bool m_RestartOnReset = true;
+		
 		[Tooltip("Process component results in a data processing chain")] [SerializeField]
 		private bool m_ProcessData = false;
 		
@@ -66,6 +69,30 @@ namespace Immersal.XR
 		{
 			get => m_ProcessData;
 			set => m_ProcessData = value;
+		}
+
+		public float SessionUpdateInterval
+		{
+			get => m_SessionUpdateInterval;
+			set => m_SessionUpdateInterval = value;
+		}
+
+		public int BurstSuccessCount
+		{
+			get => m_BurstSuccessCount;
+			set => m_BurstSuccessCount = value;
+		}
+
+		public float BurstTimeLimit
+		{
+			get => m_BurstTimeLimit;
+			set => m_BurstTimeLimit = value;
+		}
+
+		public bool RestartOnReset
+		{
+			get => m_RestartOnReset;
+			set => m_RestartOnReset = value;
 		}
 
 		private void SetBurstMode(bool on)
@@ -311,7 +338,8 @@ namespace Immersal.XR
 			await StopSession();
 			await m_SessionDataProcessingChain.ResetProcessors();
 			OnReset?.Invoke();
-			StartSession();
+			if (m_RestartOnReset)
+				StartSession();
 		}
 
 		public async Task StopSession(bool cancelRunningTask = true)

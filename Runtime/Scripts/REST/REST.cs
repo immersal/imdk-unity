@@ -234,7 +234,11 @@ namespace Immersal.REST
         public double priorX;
         public double priorY;
         public double priorZ;
+        public double priorScaleX;
+        public double priorScaleY;
+        public double priorScaleZ;
         public int priorNeighborCountMin;
+        public int priorNeighborCountMax;
         public double priorRadius;
     }
 
@@ -256,7 +260,11 @@ namespace Immersal.REST
         public double priorX;
         public double priorY;
         public double priorZ;
+        public double priorScaleX;
+        public double priorScaleY;
+        public double priorScaleZ;
         public int priorNeighborCountMin;
+        public int priorNeighborCountMax;
         public double priorRadius;
     }
 
