@@ -12,23 +12,25 @@ Contact sales@immersal.com for licensing requests.
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Immersal.REST;
-using UnityEditor;
 using UnityEngine;
 using UnityEngine.Events;
-using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
 namespace Immersal.XR
 {
-	public struct LocalizationResults : ILocalizationResults
+    public enum SolverType
     {
-	    public ILocalizationResult[] Results { get; set;  }
+        Default = 0,
+        Lean = 1,
+        Prior = 2
     }
+	
+	public struct LocalizationResults : ILocalizationResults
+	{
+		public ILocalizationResult[] Results { get; set; }
+	}
 
     public struct LocalizationResult : ILocalizationResult
     {

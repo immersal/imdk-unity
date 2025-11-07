@@ -105,9 +105,9 @@ namespace Immersal.XR
             return transform;
         }
         
-        public void TriggerResetScene()
+        public async void TriggerResetScene()
         {
-            ResetScene();
+            await ResetScene();
         }
 
         public async Task ResetScene()

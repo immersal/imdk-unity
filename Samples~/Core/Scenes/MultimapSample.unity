@@ -38,7 +38,6 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.4439372, g: 0.49315345, b: 0.5721989, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -228,6 +227,7 @@ MonoBehaviour:
   m_DeselectOnBackgroundClick: 1
   m_PointerBehavior: 0
   m_CursorLockBehavior: 0
+  m_ScrollDeltaPerTick: 6
 --- !u!1 &170076733
 GameObject:
   m_ObjectHideFlags: 0
@@ -530,6 +530,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ace14c723c1842578283a60dffe9bb2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  m_FilterMethod: 0
+  m_HistorySize: 8
   m_UseConfidence: 0
   m_ConfidenceMax: 20
   m_ConfidenceImpact: 0.5
@@ -758,14 +760,6 @@ PrefabInstance:
     - target: {fileID: 3150119538342652997, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
       propertyPath: m_ConfigurationMode
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 4876485604010972054, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: developerToken
-      value: 
-      objectReference: {fileID: 0}
-    - target: {fileID: 4876485604010972054, guid: 2c6deb7afc7d34561941b1429c48ffaf, type: 3}
-      propertyPath: m_LoggingLevel
-      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -1196,12 +1190,12 @@ MonoBehaviour:
   m_RequiresColorTexture: 0
   m_Version: 2
   m_TaaSettings:
-    quality: 3
-    frameInfluence: 0.1
-    jitterScale: 1
-    mipBias: 0
-    varianceClampScale: 0.9
-    contrastAdaptiveSharpening: 0
+    m_Quality: 3
+    m_FrameInfluence: 0.1
+    m_JitterScale: 1
+    m_MipBias: 0
+    m_VarianceClampScale: 0.9
+    m_ContrastAdaptiveSharpening: 0
 --- !u!114 &915302337
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1812,6 +1806,74 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 224200260634897472, guid: 3957475b83c974a208d245721185ae5c, type: 3}
   m_PrefabInstance: {fileID: 1102891639}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1340964490
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1340964491}
+  - component: {fileID: 1340964492}
+  m_Layer: 0
+  m_Name: XR Map align
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1340964491
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1340964490}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1959774577}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1340964492
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1340964490}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c31058a003661418e8c53c458b1c0790, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mapFile: {fileID: 0}
+  m_MapId: -1
+  m_MapName: 
+  privacy: 0
+  mapAlignment:
+    tx: 0
+    ty: 0
+    tz: 0
+    qx: 0
+    qy: 0
+    qz: 0
+    qw: 0
+    scale: 0
+  wgs84:
+    latitude: 0
+    longitude: 0
+    altitude: 0
+  IsConfigured: 0
+  Visualization: {fileID: 0}
+  m_LocalizationMethodObject: {fileID: 786826096}
+  m_SerializedMapOptions:
+  - TypeName: Immersal.XR.MapLoadingOption, Immersal.Core, Version=0.0.0.0, Culture=neutral,
+      PublicKeyToken=null
+    Data: '{"m_SerializedDataSource":0,"DownloadVisualizationAtRuntime":false,"Bytes":[]}'
 --- !u!21 &1342521504
 Material:
   serializedVersion: 8
@@ -2000,14 +2062,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1562806748}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalRotation: {x: 0, y: -0.08993732, z: 0, w: 0.9959474}
+  m_LocalPosition: {x: -1.15, y: -0.54, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 191020736}
   m_Father: {fileID: 1959774577}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -10.32, z: 0}
 --- !u!114 &1562806750
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2349,6 +2411,7 @@ Transform:
   - {fileID: 1562806749}
   - {fileID: 883329457}
   - {fileID: 893640048}
+  - {fileID: 1340964491}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1959774578

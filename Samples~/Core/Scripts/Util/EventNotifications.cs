@@ -16,91 +16,94 @@ using Immersal.Samples.Util;
 using Immersal.XR;
 using UnityEngine;
 
-public class EventNotifications : MonoBehaviour
+namespace Immersal.Samples.Util
 {
-    public static void OnSDKInitialization()
+    public class EventNotifications : MonoBehaviour
     {
-        NotificationManager.Instance.GenerateSuccess("SDK initialized");
-    }
-    
-    public static void OnSDKReset()
-    {
-        NotificationManager.Instance.GenerateNotification("SDK reset");
-    }
-    
-    public static void OnSessionPause()
-    {
-        NotificationManager.Instance.GenerateNotification("Session paused");
-    }
-    
-    public static void OnSessionResume()
-    {
-        NotificationManager.Instance.GenerateNotification("Session resumed");
-    }
-    
-    public static void OnSessionReset()
-    {
-        NotificationManager.Instance.GenerateNotification("Session reset");
-    }
-    
-    public static void OnLocalizerFirstSuccess()
-    {
-        NotificationManager.Instance.GenerateSuccess("First successful localization");
-    }
-    
-    public static void OnLocalizerSuccess()
-    {
-        NotificationManager.Instance.GenerateSuccess("Successful localization");
-    }
-    
-    public static void OnLocalizerSuccess(int previousMapId, int newMapId)
-    {
-        NotificationManager.Instance.GenerateSuccess($"{previousMapId} > {newMapId}");
-    }
-    
-    public static void OnLocalizerFail()
-    {
-        NotificationManager.Instance.GenerateWarning("Failed localization");
-    }
-
-    public static void OnLocalizationResult(ILocalizationResults results)
-    {
-        List<LocalizeInfo> localizeInfos = new List<LocalizeInfo>();
-        foreach (ILocalizationResult localizationResult in results.Results)
+        public static void OnSDKInitialization()
         {
-            if (localizationResult.Success)
-                localizeInfos.Add(localizationResult.LocalizeInfo);
+            NotificationManager.Instance.GenerateSuccess("SDK initialized");
         }
 
-        if (localizeInfos.Count == 0)
-            return;
-
-        string output = "";
-        foreach (LocalizeInfo info in localizeInfos)
+        public static void OnSDKReset()
         {
-            output = $"{output}{info.mapId}: {info.confidence}\n";
+            NotificationManager.Instance.GenerateNotification("SDK reset");
         }
-        
-        NotificationManager.Instance.GenerateSuccess(output);
-    }
-    
-    public static void OnPlatformTrackingLost()
-    {
-        NotificationManager.Instance.GenerateNotification("Platform tracking lost");
-    }
-    
-    public static void OnTrackingWell()
-    {
-        NotificationManager.Instance.GenerateSuccess("Tracking well");
-    }
-    
-    public static void OnTrackingLost()
-    {
-        NotificationManager.Instance.GenerateWarning("Tracking lost");
-    }
-    
-    public static void OnMapChange()
-    {
-        NotificationManager.Instance.GenerateNotification("");
+
+        public static void OnSessionPause()
+        {
+            NotificationManager.Instance.GenerateNotification("Session paused");
+        }
+
+        public static void OnSessionResume()
+        {
+            NotificationManager.Instance.GenerateNotification("Session resumed");
+        }
+
+        public static void OnSessionReset()
+        {
+            NotificationManager.Instance.GenerateNotification("Session reset");
+        }
+
+        public static void OnLocalizerFirstSuccess()
+        {
+            NotificationManager.Instance.GenerateSuccess("First successful localization");
+        }
+
+        public static void OnLocalizerSuccess()
+        {
+            NotificationManager.Instance.GenerateSuccess("Successful localization");
+        }
+
+        public static void OnLocalizerSuccess(int previousMapId, int newMapId)
+        {
+            NotificationManager.Instance.GenerateSuccess($"{previousMapId} > {newMapId}");
+        }
+
+        public static void OnLocalizerFail()
+        {
+            NotificationManager.Instance.GenerateWarning("Failed localization");
+        }
+
+        public static void OnLocalizationResult(ILocalizationResults results)
+        {
+            List<LocalizeInfo> localizeInfos = new List<LocalizeInfo>();
+            foreach (ILocalizationResult localizationResult in results.Results)
+            {
+                if (localizationResult.Success)
+                    localizeInfos.Add(localizationResult.LocalizeInfo);
+            }
+
+            if (localizeInfos.Count == 0)
+                return;
+
+            string output = "";
+            foreach (LocalizeInfo info in localizeInfos)
+            {
+                output = $"{output}{info.mapId}: {info.confidence}\n";
+            }
+
+            NotificationManager.Instance.GenerateSuccess(output);
+        }
+
+        public static void OnPlatformTrackingLost()
+        {
+            NotificationManager.Instance.GenerateNotification("Platform tracking lost");
+        }
+
+        public static void OnTrackingWell()
+        {
+            NotificationManager.Instance.GenerateSuccess("Tracking well");
+        }
+
+        public static void OnTrackingLost()
+        {
+            NotificationManager.Instance.GenerateWarning("Tracking lost");
+        }
+
+        public static void OnMapChange()
+        {
+            NotificationManager.Instance.GenerateNotification("");
+        }
     }
 }

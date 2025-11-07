@@ -48,7 +48,7 @@ namespace Immersal.XR
 	    
 	    public UnityEvent<float> OnProgress;
 	    
-	    private int m_previouslyLocalizedMapId = 0;
+	    private int m_PreviouslyLocalizedMapId = 0;
 	    
 	    // No options
 	    public IMapOption[] MapOptions => null;
@@ -91,8 +91,6 @@ namespace Immersal.XR
 		    }
 	        
 		    m_MapIds = mapList.ToArray();
-		    
-		    
 		    return Task.FromResult(true);
 	    }
 
@@ -137,11 +135,11 @@ namespace Immersal.XR
 	        j.image = capture; //t.Result.Item1;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;			
-	        j.solverType = m_SolverType == SolverType.Prior ? 4 : 0;
+	        j.solverType = m_SolverType == SolverType.Prior ? 4 : (int)m_SolverType;
 	        
 	        if (m_SolverType == SolverType.Prior &&
-	            m_previouslyLocalizedMapId != 0 &&
-	            MapManager.TryGetMapEntry(m_previouslyLocalizedMapId, out MapEntry previousMapEntry))
+	            m_PreviouslyLocalizedMapId != 0 &&
+	            MapManager.TryGetMapEntry(m_PreviouslyLocalizedMapId, out MapEntry previousMapEntry))
 	        {
 		        Vector3 pos = cameraData.CameraPositionOnCapture;
 		        Matrix4x4 mapPoseWithRelation = previousMapEntry.SceneParent.ToMapSpace(pos, Quaternion.identity);
@@ -156,14 +154,15 @@ namespace Immersal.XR
 	        else
 	        {
 		        // previously localized map not found, reset
-		        m_previouslyLocalizedMapId = 0;
+		        m_PreviouslyLocalizedMapId = 0;
 	        }
 	        
 	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
 	        rot.SwitchHandedness();
 	        j.rotation = rot;
 
-	        SDKGeoPoseResult result = await j.RunJobAsync(cancellationToken);
+			SDKGeoPoseResult result = await j.RunJobAsync(cancellationToken);
+			string resultJson = JsonUtility.ToJson(result);
 
 	        float elapsedTime = Time.realtimeSinceStartup - startTime;
 
@@ -175,8 +174,8 @@ namespace Immersal.XR
 		        double latitude = result.latitude;
 		        double longitude = result.longitude;
 		        double ellipsoidHeight = result.ellipsoidHeight;
-		        Quaternion quat = new Quaternion(result.quaternion[1], result.quaternion[2], result.quaternion[3], result.quaternion[0]);
-		        ImmersalLogger.Log($"GeoPose returned latitude: {latitude}, longitude: {longitude}, ellipsoidHeight: {ellipsoidHeight}, quaternion: {quat}");
+				double[] quatEcef = new double[4];	// w,x,y,z
+				Core.RotEnuToEcef(quatEcef, result.quaternion, latitude, longitude, false);
 
 		        double[] ecef = new double[3];
 		        double[] wgs84 = new double[3] { latitude, longitude, ellipsoidHeight };
@@ -185,22 +184,24 @@ namespace Immersal.XR
 		        if (MapManager.TryGetMapEntry(mapId, out MapEntry entry))
 		        {
 			        double[] mapToEcef = entry.Map.MapToEcefGet();
+					mapToEcef[12] = 1.0; // force scale to 1.0
+					Quaternion qEcef = new Quaternion((float)quatEcef[1], (float)quatEcef[2], (float)quatEcef[3], (float)quatEcef[0]);
 			        Core.PosEcefToMap(out Vector3 mapPos, ecef, mapToEcef);
-			        Core.RotEcefToMap(out Quaternion mapRot, quat, mapToEcef);
+			        Core.RotEcefToMap(out Quaternion mapRot, qEcef, mapToEcef);
 			        
 			        LocalizeInfo locInfo = new LocalizeInfo
 			        {
 				        mapId = mapId,
 				        position = mapPos,
 				        rotation = mapRot,
-				        confidence = 0
+				        confidence = result.confidence
 			        };
 
 			        r.Success = true;
 			        r.MapId = mapId;
 			        r.LocalizeInfo = locInfo;
 
-			        m_previouslyLocalizedMapId = mapId;
+			        m_PreviouslyLocalizedMapId = mapId;
 		        }
 	        }
 	        else

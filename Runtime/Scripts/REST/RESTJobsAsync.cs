@@ -525,13 +525,8 @@ namespace Immersal.REST
 
     public class JobLocalizeServerAsync : JobAsync<SDKLocalizeResult>, IJobAsync
     {
-        public Vector3 position;
         public Quaternion rotation;
         public Vector4 intrinsics;
-        public double latitude = 0.0;
-        public double longitude = 0.0;
-        public double radius = 0.0;
-        public bool useGPS = false;
         public SDKMapId[] mapIds;
         public byte[] image;
         public int solverType = 0;
@@ -545,52 +540,30 @@ namespace Immersal.REST
         {
             this.OnStart?.Invoke();
 
-            SDKLocalizeResult result = default;
+            SDKLocalizeRequest r = new SDKLocalizeRequest();
+            r.token = this.token;
+            r.deviceModel = DeviceInfo.DeviceModel;
+            r.fx = intrinsics.x;
+            r.fy = intrinsics.y;
+            r.ox = intrinsics.z;
+            r.oy = intrinsics.w;
+            r.mapIds = this.mapIds;
+            r.qx = rotation.x;
+            r.qy = rotation.y;
+            r.qz = rotation.z;
+            r.qw = rotation.w;
+            r.solverType = this.solverType;
+            r.priorX = priorPos.x;
+            r.priorY = priorPos.y;
+            r.priorZ = priorPos.z;
+            r.priorNeighborCountMin = priorNNCountMin;
+            r.priorNeighborCountMax = priorNNCountMax;
+            r.priorScaleX = priorScale.x;
+            r.priorScaleY = priorScale.y;
+            r.priorScaleZ = priorScale.z;
+            r.priorRadius = priorRadius;
 
-            if (this.useGPS)
-            {
-                SDKGeoLocalizeRequest r = new SDKGeoLocalizeRequest();
-                r.token = this.token;
-                r.fx = intrinsics.x;
-                r.fy = intrinsics.y;
-                r.ox = intrinsics.z;
-                r.oy = intrinsics.w;
-                r.latitude = this.latitude;
-                r.longitude = this.longitude;
-                r.radius = this.radius;
-                r.qx = rotation.x;
-                r.qy = rotation.y;
-                r.qz = rotation.z;
-                r.qw = rotation.w;
-                r.solverType = this.solverType;
-                result = await ImmersalHttp.RequestUpload<SDKGeoLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
-            }
-            else
-            {
-                SDKLocalizeRequest r = new SDKLocalizeRequest();
-                r.token = this.token;
-                r.deviceModel = DeviceInfo.DeviceModel;
-                r.fx = intrinsics.x;
-                r.fy = intrinsics.y;
-                r.ox = intrinsics.z;
-                r.oy = intrinsics.w;
-                r.mapIds = this.mapIds;
-                r.qx = rotation.x;
-                r.qy = rotation.y;
-                r.qz = rotation.z;
-                r.qw = rotation.w;
-                r.solverType = this.solverType;
-                r.priorX = priorPos.x;
-                r.priorY = priorPos.y;
-                r.priorZ = priorPos.z;
-                r.priorNeighborCountMin = priorNNCountMin;
-                r.priorNeighborCountMax = priorNNCountMax;
-                r.priorScaleX = priorScale.x;
-                r.priorScaleY = priorScale.y;
-                r.priorScaleZ = priorScale.z;
-                r.priorRadius = priorRadius;
-                result = await ImmersalHttp.RequestUpload<SDKLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
-            }
+            SDKLocalizeResult result = await ImmersalHttp.RequestUpload<SDKLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
 
             if (result.error == "none")
             {
@@ -605,9 +578,98 @@ namespace Immersal.REST
         }
     }
 
+    public class JobOSCPGeoPoseAsync : JobAsync<OSCPGeoPoseResp>, IJobAsync
+    {
+        public Vector4 intrinsics;
+        public double latitude = 0.0;
+        public double longitude = 0.0;
+        public double altitude = 0.0;
+        public double accuracy = 0.0;
+        public double altitudeAccuracy = 0.0;
+        public double radius = 0.0;
+        public byte[] image;
+        public int width;
+        public int height;
+        public int orientation = 0;
+        public bool mirrored = false;
+
+        public override async Task<OSCPGeoPoseResp> RunJobAsync(CancellationToken cancellationToken = default)
+        {
+            this.OnStart?.Invoke();
+
+            OSCPSensor sensorCam = new OSCPSensor
+            {
+                id = Guid.NewGuid().ToString(),
+                type = "camera",
+                model = DeviceInfo.DeviceModel
+            };
+
+            OSCPSensor sensorGeo = new OSCPSensor
+            {
+                id = Guid.NewGuid().ToString(),
+                type = "geolocation"
+            };
+
+            OSCPImageOrientation imageOrientation = new OSCPImageOrientation
+            {
+                mirrored = mirrored,
+                rotation = orientation
+            };
+
+            OSCPCameraParam cameraParams = new OSCPCameraParam
+            {
+                model = OSCPCameraModel.PINHOLE,
+                modelParams = new float[4] { intrinsics.x, intrinsics.y, intrinsics.z, intrinsics.w }
+            };
+
+            OSCPCameraReading cameraReading = new OSCPCameraReading
+            {
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                sensorId = sensorCam.id,
+                sequenceNumber = 0,
+                imageFormat = OSCPImageFormat.PNG,
+                size = new int[2] { width, height },
+                imageBytes = Convert.ToBase64String(image),
+                imageOrientation = imageOrientation,
+                @params = cameraParams
+            };
+
+            OSCPGeolocationReading geoLocationReading = new OSCPGeolocationReading
+            {
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                sensorId = sensorGeo.id,
+                latitude = latitude,
+                longitude = longitude,
+                altitude = altitude,
+                accuracy = accuracy,
+                altitudeAccuracy = altitudeAccuracy
+            };
+
+            OSCPSensorReadings sensorReadings = new OSCPSensorReadings
+            {
+                cameraReadings = new OSCPCameraReading[1] { cameraReading },
+                geolocationReadings = new OSCPGeolocationReading[1] { geoLocationReading }
+            };
+
+            OSCPGeoPoseReq r = new OSCPGeoPoseReq
+            {
+                id = Guid.NewGuid().ToString(),
+                timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                type = "geopose",
+                sensors = new OSCPSensor[2] { sensorCam, sensorGeo },
+                sensorReadings = sensorReadings,
+                priorPoses = new OSCPGeoPoseResp[0]
+            };
+
+            OSCPGeoPoseResp result = await ImmersalHttp.RequestUpload<OSCPGeoPoseReq, OSCPGeoPoseResp>(r, this.image, this.Progress, cancellationToken);
+            this.OnResult?.Invoke(result);
+
+            return result;
+        }
+    }
+
     public class JobGeoPoseAsync : JobAsync<SDKGeoPoseResult>, IJobAsync
     {
-        public Vector3 position;
         public Quaternion rotation;
         public Vector4 intrinsics;
         public SDKMapId[] mapIds;
@@ -688,33 +750,46 @@ namespace Immersal.REST
 
     public class JobListJobsAsync : JobAsync<SDKJobsResult>, IJobAsync
     {
-        public double latitude = 0.0;
-        public double longitude = 0.0;
-        public double radius = 0.0;
-        public bool useGPS = false;
-        public bool useToken = true;
+        public bool useToken = true;    // if true, lists the user's own maps, otherwise public maps
 
         public override async Task<SDKJobsResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
             this.OnStart?.Invoke();
 
-            SDKJobsResult result = default;
+            SDKJobsRequest r = new SDKJobsRequest();
+            r.token = this.useToken ? this.token : "";
+            SDKJobsResult result = await ImmersalHttp.Request<SDKJobsRequest, SDKJobsResult>(r, this.Progress, cancellationToken);
 
-            if (this.useGPS)
+            if (result.error == "none")
             {
-                SDKGeoJobsRequest r = new SDKGeoJobsRequest();
-                r.token = this.useToken ? this.token : "";
-                r.latitude = this.latitude;
-                r.longitude = this.longitude;
-                r.radius = this.radius;
-                result = await ImmersalHttp.Request<SDKGeoJobsRequest, SDKJobsResult>(r, this.Progress, cancellationToken);
+                this.OnResult?.Invoke(result);
             }
             else
             {
-                SDKJobsRequest r = new SDKJobsRequest();
-                r.token = this.useToken ? this.token : "";
-                result = await ImmersalHttp.Request<SDKJobsRequest, SDKJobsResult>(r, this.Progress, cancellationToken);
+                HandleError(result.error);
             }
+
+            return result;
+        }
+    }
+
+    public class JobListGeoJobsAsync : JobAsync<SDKJobsResult>, IJobAsync
+    {
+        public double latitude = 0.0;
+        public double longitude = 0.0;
+        public double radius = 0.0;
+        public bool useToken = true;    // if true, lists the user's own maps, otherwise public maps
+
+        public override async Task<SDKJobsResult> RunJobAsync(CancellationToken cancellationToken = default)
+        {
+            this.OnStart?.Invoke();
+
+            SDKGeoJobsRequest r = new SDKGeoJobsRequest();
+            r.token = this.useToken ? this.token : "";
+            r.latitude = this.latitude;
+            r.longitude = this.longitude;
+            r.radius = this.radius;
+            SDKJobsResult result = await ImmersalHttp.Request<SDKGeoJobsRequest, SDKJobsResult>(r, this.Progress, cancellationToken);
 
             if (result.error == "none")
             {

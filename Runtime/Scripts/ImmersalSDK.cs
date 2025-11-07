@@ -29,7 +29,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.1.1";
+		public static string sdkVersion = "2.2.0";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		
@@ -431,9 +431,9 @@ namespace Immersal
             MapManager.RemoveAllMaps(false);
         }
 
-        public void TriggerSoftReset()
+        public async void TriggerSoftReset()
         {
-	        SoftReset();
+	        await SoftReset();
         }
 
         public async Task SoftReset()
@@ -443,9 +443,9 @@ namespace Immersal
 	        TrackingAnalyzer.Reset();
         }
         
-        public void TriggerResetScenes()
+        public async void TriggerResetScenes()
         {
-	        ResetScenes();
+	        await ResetScenes();
         }
         
         public async Task ResetScenes()

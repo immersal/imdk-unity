@@ -11,6 +11,7 @@
 double latitude;
 double longitude;
 double altitude;
+double ellipsoidalAltitude;
 double haccuracy;
 double vaccuracy;
 
@@ -54,6 +55,7 @@ static bool isEnabled = NO;
     latitude = location.coordinate.latitude;
     longitude = location.coordinate.longitude;
     altitude = location.altitude;
+	ellipsoidalAltitude = location.ellipsoidalAltitude;
     haccuracy = location.horizontalAccuracy;
     vaccuracy = location.verticalAccuracy;
     
@@ -114,6 +116,11 @@ extern "C"
     {
         return altitude;
     }
+
+	double getEllipsoidalAltitude()
+	{
+		return ellipsoidalAltitude;
+	}
 
     double getHorizontalAccuracy()
     {

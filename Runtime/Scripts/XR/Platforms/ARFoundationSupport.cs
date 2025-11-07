@@ -377,21 +377,22 @@ namespace Immersal.XR
     public class ARFImageData : ImageData
     {
         public XRCpuImage Image;
-        private IntPtr m_unmanagedDataPointer;
-        private byte[] m_managedBytes;
+        private IntPtr m_UnmanagedDataPointer;
+        private byte[] m_ManagedBytes;
+        private GCHandle m_ManagedDataHandle;
 
-        public override IntPtr UnmanagedDataPointer => m_unmanagedDataPointer;
+        public override IntPtr UnmanagedDataPointer => m_UnmanagedDataPointer;
 
         public override byte[] ManagedBytes
         {
             get
             {
-                if (m_managedBytes == null || m_managedBytes.Length == 0)
+                if (m_ManagedBytes == null || m_ManagedBytes.Length == 0)
                 {
-                    m_managedBytes = CopyBytes();
+                    m_ManagedBytes = CopyBytes();
                 }
 
-                return m_managedBytes;
+                return m_ManagedBytes;
             }
         }
 
@@ -404,11 +405,11 @@ namespace Immersal.XR
             switch (format)
             {
                 case CameraDataFormat.RGB:
-                    GetPointerToRGB(ref m_unmanagedDataPointer, Image);
+                    GetPointerToRGB(Image);
                     break;
                 default:
                 case CameraDataFormat.SingleChannel:
-                    GetPointerFast(ref m_unmanagedDataPointer, Image);
+                    GetPointerFast(Image);
                     break;
             }
         }
@@ -416,10 +417,12 @@ namespace Immersal.XR
         public override void DisposeData()
         {
             Image.Dispose();
-            m_unmanagedDataPointer = IntPtr.Zero;
+            if (m_ManagedDataHandle.IsAllocated)
+                m_ManagedDataHandle.Free();
+            m_UnmanagedDataPointer = IntPtr.Zero;
         }
 
-        private void GetPointerFast(ref IntPtr unmanagedPointer, XRCpuImage image)
+        private void GetPointerFast(XRCpuImage image)
         {
             XRCpuImage.Plane plane = image.GetPlane(0); // use the Y plane
             int width = image.width, height = image.height;
@@ -428,7 +431,7 @@ namespace Immersal.XR
             {
                 unsafe
                 {
-                    unmanagedPointer = (IntPtr)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
+                    m_UnmanagedDataPointer = (IntPtr)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
                 }
             }
             else
@@ -445,13 +448,13 @@ namespace Immersal.XR
                             UnsafeUtility.MemCpyStride(dstPtr, width, srcPtr, plane.rowStride, width, height);
                         }
 
-                        unmanagedPointer = (IntPtr)dstPtr;
+                        m_UnmanagedDataPointer = (IntPtr)dstPtr;
                     }
                 }
             }
         }
 
-        private static void GetPointerToRGB(ref IntPtr unmanagedPointer, XRCpuImage image)
+        private void GetPointerToRGB(XRCpuImage image)
         {
             var conversionParams = new XRCpuImage.ConversionParams
             {
@@ -462,16 +465,10 @@ namespace Immersal.XR
             };
 
             int size = image.GetConvertedDataSize(conversionParams);
-            byte[] data = new byte[size];
-
-            unsafe
-            {
-                fixed (byte* dstPtr = data)
-                {
-                    unmanagedPointer = (IntPtr)dstPtr;
-                    image.Convert(conversionParams, unmanagedPointer, data.Length);
-                }
-            }
+            m_ManagedBytes = new byte[size];
+            m_ManagedDataHandle = GCHandle.Alloc(m_ManagedBytes, GCHandleType.Pinned);
+            m_UnmanagedDataPointer = m_ManagedDataHandle.AddrOfPinnedObject();
+            image.Convert(conversionParams, m_UnmanagedDataPointer, m_ManagedBytes.Length);
         }
 
         private byte[] CopyBytes()
@@ -479,7 +476,8 @@ namespace Immersal.XR
             int pixelSize = m_Format == CameraDataFormat.SingleChannel ? 1 : 3;
             int size = Image.width * Image.height * pixelSize;
             byte[] bytes = new byte[size];
-            Marshal.Copy(m_unmanagedDataPointer, bytes, 0, size);
+            Marshal.Copy(m_UnmanagedDataPointer, bytes, 0, size);
+            m_ManagedDataHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
             return bytes;
         }
     }

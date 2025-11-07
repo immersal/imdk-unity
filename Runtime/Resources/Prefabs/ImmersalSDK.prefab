@@ -49,13 +49,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 22271c1298ba444ffacf4138cd9ef2eb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  defaultServer: 0
+  ImmersalServer: 0
   developerToken: 
   m_Session: {fileID: 4858077625584781203}
   m_Platform: {fileID: 6469108069241648846}
   m_Localizer: {fileID: 4174534150879381888}
   m_SceneUpdater: {fileID: 2545414792828475238}
   m_TrackingAnalyzer: {fileID: 6509155160601367522}
+  m_InitializeAutomatically: 1
   m_TargetFrameRate: 60
   m_Downsample: 1
   m_LoggingLevel: 2
@@ -63,9 +64,13 @@ MonoBehaviour:
   OnInitializationComplete:
     m_PersistentCalls:
       m_Calls: []
+  OnUserValidationComplete:
+    m_PersistentCalls:
+      m_Calls: []
   OnReset:
     m_PersistentCalls:
       m_Calls: []
+  m_CustomServerUrl: 
 --- !u!1 &1624132911465332519
 GameObject:
   m_ObjectHideFlags: 0
@@ -156,6 +161,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ConfigurationMode: 1
   m_SolverType: 0
+  m_PriorNNCount: 0
+  m_PriorRadius: 0
 --- !u!1 &4483478919481266077
 GameObject:
   m_ObjectHideFlags: 0
@@ -204,6 +211,7 @@ MonoBehaviour:
   m_MsBetweenConfigurationAttempts: 100
   m_AndroidResolution: 2
   m_iOSResolution: 0
+  m_CameraDataFormat: 0
 --- !u!1 &5513217393547005349
 GameObject:
   m_ObjectHideFlags: 0
@@ -316,10 +324,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_AutoStart: 1
-  m_UpdateContinuously: 1
   m_SessionUpdateInterval: 2
   m_BurstMode: 1
+  m_BurstSuccessCount: 10
+  m_BurstTimeLimit: 15
   m_ResetOnPause: 0
+  m_RestartOnReset: 1
   m_ProcessData: 0
   m_SessionDataProcessors: []
   OnPause:
@@ -377,6 +387,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ConfigurationMode: 0
   m_SolverType: 0
+  m_PriorNNCountMin: 60
+  m_PriorNNCountMax: 720
+  m_PriorScale: {x: 1, y: 1, z: 1}
+  m_PriorRadius: 0
+  OnProgress:
+    m_PersistentCalls:
+      m_Calls: []
 --- !u!1 &9015867826600335194
 GameObject:
   m_ObjectHideFlags: 0

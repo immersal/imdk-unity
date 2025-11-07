@@ -169,20 +169,20 @@ namespace Immersal.XR
         public override byte[] ManagedBytes { get; }
 
         private IntPtr m_UnmanagedDataPointer;
-        private GCHandle m_managedDataHandle;
+        private GCHandle m_ManagedDataHandle;
 
         public SimpleImageData(byte[] bytes)
         {
             ManagedBytes = bytes;
-            m_managedDataHandle = GCHandle.Alloc(ManagedBytes, GCHandleType.Pinned);
-            m_UnmanagedDataPointer = m_managedDataHandle.AddrOfPinnedObject();
+            m_ManagedDataHandle = GCHandle.Alloc(ManagedBytes, GCHandleType.Pinned);
+            m_UnmanagedDataPointer = m_ManagedDataHandle.AddrOfPinnedObject();
         }
 
         public override void DisposeData()
         {
-            m_managedDataHandle.Free();
+            if (m_ManagedDataHandle.IsAllocated)
+                m_ManagedDataHandle.Free();
             m_UnmanagedDataPointer = IntPtr.Zero;
         }
     }
-
 }

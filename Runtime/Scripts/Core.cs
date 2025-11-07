@@ -34,6 +34,7 @@ namespace Immersal
         public Vector3 position;
         public Quaternion rotation;
         public int confidence;
+        public double rmse;
     };
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -160,15 +161,18 @@ namespace Immersal
         }
 
         /// <summary>
-        /// Gets the position and orientation of the image within the map.
+        /// Gets the position and orientation of the image within loaded maps.
         /// </summary>
-        /// <param name="pos">Output Vector3 for the position</param>
-        /// <param name="rot">Output Quaternion for the orientation</param>
+        /// <param name="n">Number of map IDs</param>
+        /// <param name="mapIds">Array of map IDs</param>
         /// <param name="width">Image width</param>
         /// <param name="height">Image height</param>
         /// <param name="intrinsics">Camera intrinsics</param>
         /// <param name="pixels">Raw pixel buffer data from the camera</param>
-        /// <returns>A LocalizeInfo struct with mapId. mapId will be -1 on failure.</returns>
+        /// <param name="channels">Number of channels in the camera image (1 = GRAY8, 3 = RGB24, 4 = RGBA)</param>
+        /// <param name="solverType">Experimental; default: 0</param>
+        /// <param name="cameraRotation">Optional; camera rotation during image capture, used when solverType=1</param>
+        /// <returns>A LocalizeInfo struct with mapId, position, rotation etc. mapId will be -1 on failure.</returns>
         public static LocalizeInfo LocalizeImage(int n, int[] mapIds, int width,
             int height, ref Vector4 intrinsics, IntPtr pixels, int channels, int solverType, ref Quaternion cameraRotation)
         {
@@ -177,7 +181,7 @@ namespace Immersal
                 GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
                 LocalizeInfo result = Native.icvLocalize(n, intHandle.AddrOfPinnedObject(), width, height,
                     ref intrinsics, pixels, channels, solverType, ref cameraRotation);
-                intHandle.Free();
+                if (intHandle.IsAllocated) intHandle.Free();
                 
                 // result.mapId is a handle at this point -> convert
                 if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
@@ -194,15 +198,13 @@ namespace Immersal
         }
 
         /// <summary>
-        /// Gets the position and orientation of the image within the map.
+        /// Gets the position and orientation of the image within loaded maps.
         /// </summary>
-        /// <param name="pos">Output Vector3 for the position</param>
-        /// <param name="rot">Output Quaternion for the orientation</param>
         /// <param name="width">Image width</param>
         /// <param name="height">Image height</param>
         /// <param name="intrinsics">Camera intrinsics</param>
         /// <param name="pixels">Raw pixel buffer data from the camera</param>
-        /// <returns>A LocalizeInfo struct with mapId. mapId will be -1 on failure.</returns>
+        /// <returns>A LocalizeInfo struct with mapId, position, rotation etc. mapId will be -1 on failure.</returns>
         public static LocalizeInfo LocalizeImage(int width, int height,
             ref Vector4 intrinsics, IntPtr pixels)
         {
@@ -213,6 +215,17 @@ namespace Immersal
             return LocalizeImage(n, mapIds, width, height, ref intrinsics, pixels, channels, 0, ref cameraRotation);
         }
         
+        /// <summary>
+        /// Gets the position and orientation of the image within loaded maps.
+        /// </summary>
+        /// <param name="width">Image width</param>
+        /// <param name="height">Image height</param>
+        /// <param name="intrinsics">Camera intrinsics</param>
+        /// <param name="pixels">Raw pixel buffer data from the camera</param>
+        /// <param name="channels">Number of channels in the camera image (1 = GRAY8, 3 = RGB24, 4 = RGBA)</param>
+        /// <param name="solverType">Experimental; default: 0</param>
+        /// <param name="cameraRotation">Optional; camera rotation during image capture, used when solverType=1</param>
+        /// <returns>A LocalizeInfo struct with mapId, position, rotation etc. mapId will be -1 on failure.</returns>
         public static LocalizeInfo LocalizeImage(int width, int height,
             ref Vector4 intrinsics, IntPtr pixels, int channels, int solverType, ref Quaternion cameraRotation)
         {
@@ -225,7 +238,9 @@ namespace Immersal
         /// Gets the position and orientation of the image within the map.
         /// </summary>
         /// <param name="cameraData">ICameraData containing necessary data</param>
-        /// <returns>A LocalizeInfo struct with mapId. mapId will be -1 on failure.</returns>
+        /// <param name="pixelBuffer">Pointer to the camera pixel buffer</param>
+        /// <param name="solverType">Experimental; default: 0</param>
+        /// <returns>A LocalizeInfo struct with mapId, position, rotation etc. mapId will be -1 on failure.</returns>
         public static LocalizeInfo LocalizeImage(ICameraData cameraData, IntPtr pixelBuffer, int solverType = 0)
         {
             int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
@@ -235,7 +250,7 @@ namespace Immersal
             return LocalizeImage(cameraData.Width, cameraData.Height, ref intrinsics, pixelBuffer, channels, solverType, ref r);
         }
         
-        public static LocalizeInfo icvLocalizeImageWithPrior(ICameraData cameraData, IntPtr pixelBuffer, ref Vector3 priorPos, int priorNNCount, float priorRadius)
+        public static LocalizeInfo LocalizeImageWithPrior(ICameraData cameraData, IntPtr pixelBuffer, ref Vector3 priorPos, int priorNNCount, float priorRadius)
         {
             int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
             Vector4 intrinsics = cameraData.Intrinsics;
@@ -246,7 +261,7 @@ namespace Immersal
                 GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
                 LocalizeInfo result = Native.icvLocalizePrior(n, intHandle.AddrOfPinnedObject(), cameraData.Width, cameraData.Height,
                     ref intrinsics, pixelBuffer, channels, ref priorPos, priorNNCount, priorRadius);
-                intHandle.Free();
+                if (intHandle.IsAllocated) intHandle.Free();
                 
                 // result.mapId is a handle at this point -> convert
                 if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
@@ -263,12 +278,12 @@ namespace Immersal
         }
 
         /// <summary>
-        /// 
+        /// Map position to ECEF coordinates
         /// </summary>
-        /// <param name="ecef"></param>
-        /// <param name="map"></param>
-        /// <param name="mapToEcef"></param>
-        /// <returns></returns>
+        /// <param name="ecef">Output ECEF array</param>
+        /// <param name="map">Local position within the map</param>
+        /// <param name="mapToEcef">The map's position in ECEF coordinates</param>
+        /// <returns>0</returns>
         public static int PosMapToEcef(double[] ecef, Vector3 map, double[] mapToEcef)
         {
             GCHandle ecefHandle = GCHandle.Alloc(ecef, GCHandleType.Pinned);
@@ -281,10 +296,10 @@ namespace Immersal
         }
 
         /// <summary>
-        /// 
+        /// ECEF position to WGS84 coordinates
         /// </summary>
-        /// <param name="wgs84"></param>
-        /// <param name="ecef"></param>
+        /// <param name="wgs84">Output WGS84 array [latitde, longitude, altitude]</param>
+        /// <param name="ecef">Position in ECEF</param>
         /// <returns></returns>
         public static int PosEcefToWgs84(double[] wgs84, double[] ecef)
         {
@@ -297,10 +312,10 @@ namespace Immersal
         }
 
         /// <summary>
-        /// 
+        /// WGS84 position to ECEF coordinates
         /// </summary>
-        /// <param name="ecef"></param>
-        /// <param name="wgs84"></param>
+        /// <param name="ecef">Output ECEF array</param>
+        /// <param name="wgs84">Position in WGS84</param>
         /// <returns></returns>
         public static int PosWgs84ToEcef(double[] ecef, double[] wgs84)
         {
@@ -373,6 +388,24 @@ namespace Immersal
             GCHandle mapToEcefHandle = GCHandle.Alloc(mapToEcef, GCHandleType.Pinned);
             int r = Native.icvRotEcefToMap(out map, ref ecef, mapToEcefHandle.AddrOfPinnedObject());
             mapToEcefHandle.Free();
+            return r;
+        }
+
+        /// <summary>
+        /// Converts ENU rotation to ECEF
+        /// </summary>
+        /// <param name="quatEcef">Output double[4] ECEF quaternion (w, x, y, z)</param>
+        /// <param name="quatEnu">Input double[4] ENU quaternion (w, x, y, z)</param>
+        /// <param name="latDeg">Latitude in degrees</param>
+        /// <param name="lonDeg">Longitude in degrees</param>
+        /// <returns></returns>
+        public static int RotEnuToEcef(double[] quatEcef, double[] quatEnu, double latDeg, double lonDeg, bool oscp)
+        {
+            GCHandle ecefHandle = GCHandle.Alloc(quatEcef, GCHandleType.Pinned);
+            GCHandle enuHandle = GCHandle.Alloc(quatEnu, GCHandleType.Pinned);
+            int r = Native.icvRotEnuToEcef(ecefHandle.AddrOfPinnedObject(), enuHandle.AddrOfPinnedObject(), latDeg, lonDeg, oscp);
+            enuHandle.Free();
+            ecefHandle.Free();
             return r;
         }
 
@@ -534,6 +567,9 @@ namespace Immersal
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvRotMapToEcef(out Quaternion ecef, ref Quaternion map, IntPtr mapToEcef);
+
+        [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int icvRotEnuToEcef(IntPtr quatEcef, IntPtr quatEnu, double latDeg, double lonDeg, bool oscp);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvRotEcefToMap(out Quaternion map, ref Quaternion ecef, IntPtr mapToEcef);

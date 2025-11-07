@@ -34,6 +34,9 @@ namespace Immersal
 		public static extern double getAltitude();
 
 		[DllImport("__Internal")]
+		public static extern double getEllipsoidalAltitude();
+
+		[DllImport("__Internal")]
 		public static extern double getHorizontalAccuracy();
 
 		[DllImport("__Internal")]
@@ -89,10 +92,11 @@ namespace Immersal
 			#endif
 		}
 
+		// ellipsoidalAltitude, not MSL
 		public static double GetAltitude()
 		{
 			#if UNITY_IOS
-			return getAltitude();
+			return getEllipsoidalAltitude();
 			#elif PLATFORM_ANDROID
 			return obj.CallStatic<double>("getAltitude");
 			#endif

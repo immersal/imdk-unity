@@ -12,15 +12,12 @@ Contact sales@immersal.com for licensing requests.
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using Immersal.REST;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 using UnityEngine;
-using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
 namespace Immersal.XR

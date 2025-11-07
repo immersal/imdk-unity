@@ -15,18 +15,10 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Immersal.REST;
-using UnityEditor;
 using UnityEngine;
 
 namespace Immersal.XR
 {
-    public enum SolverType
-    {
-        Default = 0,
-        Lean = 1,
-        Prior = 2
-    };
-    
     [Serializable]
     public class DeviceLocalization : MonoBehaviour, ILocalizationMethod
     {
@@ -111,13 +103,13 @@ namespace Immersal.XR
                     Matrix4x4 mapPoseWithRelation = entry.SceneParent.ToMapSpace(pos, Quaternion.identity);
                     Vector3 priorPos = entry.Relation.ApplyInverseRelation(mapPoseWithRelation).GetPosition();
                     priorPos.SwitchHandedness();
-                    locInfo = await Task.Run(() => Immersal.Core.icvLocalizeImageWithPrior(cameraData, imageData.UnmanagedDataPointer, ref priorPos, m_PriorNNCount, m_PriorRadius), cancellationToken);
+                    locInfo = await Task.Run(() => Immersal.Core.LocalizeImageWithPrior(cameraData, imageData.UnmanagedDataPointer, ref priorPos, m_PriorNNCount, m_PriorRadius), cancellationToken);
             }
             else
             {
                 // previously localized map not found, reset
                 m_previouslyLocalizedMapId = 0;
-                locInfo = await Task.Run(() => Immersal.Core.LocalizeImage(cameraData, imageData.UnmanagedDataPointer,(int)m_SolverType), cancellationToken);
+                locInfo = await Task.Run(() => Immersal.Core.LocalizeImage(cameraData, imageData.UnmanagedDataPointer, (int)m_SolverType), cancellationToken);
             }
             
             float elapsedTime = Time.realtimeSinceStartup - startTime;
@@ -162,11 +154,6 @@ namespace Immersal.XR
             }
 
             return Task.CompletedTask;
-        }
-
-        public void SetSolverType(SolverType newSolverType)
-        {
-            m_SolverType = newSolverType;
         }
     }
 }

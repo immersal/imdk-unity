@@ -15,111 +15,114 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 
-public class DebugConsole : MonoBehaviour
+namespace Immersal.Samples.Util
 {
-    [SerializeField] bool  m_ShowOnAppStart;
-    [SerializeField] private TextMeshProUGUI m_DebugLogText;
-    [SerializeField] private GameObject m_ContentParent;
-    [SerializeField] private int m_DebugLogLineMaxCount = 100;
-    
-    private List<string> m_DebugLogLines = new List<string>();
-    private StringBuilder m_stringBuilder = new StringBuilder();
-    
-    private static DebugConsole m_instance = null;
-    
-    public static DebugConsole Instance
+    public class DebugConsole : MonoBehaviour
     {
-        get
+        [SerializeField] bool m_ShowOnAppStart;
+        [SerializeField] private TextMeshProUGUI m_DebugLogText;
+        [SerializeField] private GameObject m_ContentParent;
+        [SerializeField] private int m_DebugLogLineMaxCount = 100;
+
+        private List<string> m_DebugLogLines = new List<string>();
+        private StringBuilder m_stringBuilder = new StringBuilder();
+
+        private static DebugConsole m_instance = null;
+
+        public static DebugConsole Instance
         {
-#if UNITY_EDITOR
-            if (m_instance == null && !Application.isPlaying)
+            get
             {
-                m_instance = FindObjectOfType<DebugConsole>();
-            }
+#if UNITY_EDITOR
+                if (m_instance == null && !Application.isPlaying)
+                {
+                    m_instance = FindObjectOfType<DebugConsole>();
+                }
 #endif
+                if (m_instance == null)
+                {
+                    Debug.LogError("No DebugConsole instance found. Ensure one exists in the scene.");
+                }
+                return m_instance;
+            }
+        }
+
+        void Awake()
+        {
             if (m_instance == null)
             {
-                Debug.LogError("No DebugConsole instance found. Ensure one exists in the scene.");
+                m_instance = this;
             }
-            return m_instance;
+            if (m_instance != this)
+            {
+                Debug.LogError("There must be only one DebugConsole object in a scene.");
+                DestroyImmediate(this);
+            }
         }
-    }
-
-    void Awake()
-    {
-        if (m_instance == null)
+        void Start()
         {
-            m_instance = this;
+            m_ContentParent.SetActive(m_ShowOnAppStart);
         }
-        if (m_instance != this)
+        void OnEnable()
         {
-            Debug.LogError("There must be only one DebugConsole object in a scene.");
-            DestroyImmediate(this);
+            Application.logMessageReceived += HandleLog;
         }
-    }
-    void Start()
-    {
-        m_ContentParent.SetActive(m_ShowOnAppStart);
-    }
-    void OnEnable()
-    {
-        Application.logMessageReceived += HandleLog;
-    }
 
-    void OnDisable()
-    {
-        Application.logMessageReceived -= HandleLog;
-    }
-    public bool isShown => m_ContentParent.activeSelf;
-    public void Show(bool show)
-    {
-        if (m_ContentParent.activeSelf == show) return;
-        
-        m_ContentParent.SetActive(show);
-        Debug.Log("Debug console "+(show?"enabled":"disabled"));
-    }
-    
-    public void ToggleShow()
-    {
-        Show(!m_ContentParent.activeSelf);
-    }
-
-    void HandleLog(string logString, string stackTrace, LogType type)
-    {
-        switch (type)
+        void OnDisable()
         {
-            case LogType.Warning:
-                logString = string.Format("<color=orange>{0}</color>", logString);
-                break;
-            case LogType.Error:
-            case LogType.Exception:
-                logString = string.Format("<color=red>{0}{1}STACK TRACE: {2}</color>", logString, Environment.NewLine, stackTrace);
-                break;
+            Application.logMessageReceived -= HandleLog;
         }
-        AddText(logString);
-    }
-
-    private void AddText(string text)
-    {
-        if (m_DebugLogLines.Count >= m_DebugLogLineMaxCount)
+        public bool isShown => m_ContentParent.activeSelf;
+        public void Show(bool show)
         {
-            m_DebugLogLines.RemoveAt(0);
+            if (m_ContentParent.activeSelf == show) return;
+
+            m_ContentParent.SetActive(show);
+            Debug.Log("Debug console " + (show ? "enabled" : "disabled"));
         }
 
-        m_DebugLogLines.Add("[" + Time.realtimeSinceStartup.ToString("0.000") + "] " + text);
-
-        m_DebugLogText.text = ConstructLogText();
-    }
-    
-    private string ConstructLogText()
-    {
-        m_stringBuilder.Clear();
-        
-        for (int i = m_DebugLogLines.Count - 1; i >= 0; i--)
+        public void ToggleShow()
         {
-            m_stringBuilder.AppendLine(m_DebugLogLines[i]);
+            Show(!m_ContentParent.activeSelf);
         }
 
-        return m_stringBuilder.ToString();
+        void HandleLog(string logString, string stackTrace, LogType type)
+        {
+            switch (type)
+            {
+                case LogType.Warning:
+                    logString = string.Format("<color=orange>{0}</color>", logString);
+                    break;
+                case LogType.Error:
+                case LogType.Exception:
+                    logString = string.Format("<color=red>{0}{1}STACK TRACE: {2}</color>", logString, Environment.NewLine, stackTrace);
+                    break;
+            }
+            AddText(logString);
+        }
+
+        private void AddText(string text)
+        {
+            if (m_DebugLogLines.Count >= m_DebugLogLineMaxCount)
+            {
+                m_DebugLogLines.RemoveAt(0);
+            }
+
+            m_DebugLogLines.Add("[" + Time.realtimeSinceStartup.ToString("0.000") + "] " + text);
+
+            m_DebugLogText.text = ConstructLogText();
+        }
+
+        private string ConstructLogText()
+        {
+            m_stringBuilder.Clear();
+
+            for (int i = m_DebugLogLines.Count - 1; i >= 0; i--)
+            {
+                m_stringBuilder.AppendLine(m_DebugLogLines[i]);
+            }
+
+            return m_stringBuilder.ToString();
+        }
     }
 }

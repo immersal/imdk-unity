@@ -1,5 +1,30 @@
 # Changelog
 
+## [2.2.0] - 2025-11-06
+
+### Added
+- `GeoPoseLocalization.cs`: OSCP (Open Spatial Computing Platform) compliant GeoPose localizer. Uses the new `/geoposeoscp` [API endpoint](https://api.immersal.com/geoposeoscp).
+  See: [Protocol specification](https://github.com/OpenArCloud/oscp-geopose-protocol) / [Read more](https://www.openarcloud.org/oscp)
+- `GPSLocationProvider.cs`: native (double-precision) GPS tracking
+- Core plugin: ENU->ECEF convertion functions
+- REST: Support for upload cancellation token in `RequestUpload`
+
+### Fixed
+- RGB image memory issue
+- Wrong `solverType` when it's not 0 or prior
+- Android plugin: Support [16 KB page size requirement by Google](https://android-developers.googleblog.com/2025/05/prepare-play-apps-for-devices-with-16kb-page-size.html)
+- iOS: `NativeLocation.mm` plugin now returns `ellipsoidalAltitude` as GPS altitude instead of MSL (mean sea level). This matches the behaviour on Android devices and Immersal's geo-related APIs.
+- Minor bug fixes and SDK streamlining
+- Compiler warnings
+
+### Changed
+- Updated all plugins to 2.2.0
+- `Core.cs`: tidied up some function names and docs
+- Note: The old 'proprietary' Immersal GeoPose localizer `GeoLocalization.cs` uses the `/geopose` endpoint. This may change in the future...
+
+### Removed
+- The even older endpoint `/geolocalize` hasn't been updated in years and has been removed from `REST.cs` etc.
+
 ## [2.1.1] - 2025-03-06
 
 ### Added

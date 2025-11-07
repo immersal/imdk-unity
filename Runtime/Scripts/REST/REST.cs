@@ -197,25 +197,6 @@ namespace Immersal.REST
     }
     
     [Serializable]
-    public struct SDKGeoLocalizeRequest
-    {
-        public static string endpoint = "geolocalize";
-        public string token;
-        public double fx;
-        public double fy;
-        public double ox;
-        public double oy;
-        public double latitude;
-        public double longitude;
-        public double radius;
-        public double qx;
-        public double qy;
-        public double qz;
-        public double qw;
-        public int solverType;
-    }
-
-    [Serializable]
     public struct SDKLocalizeRequest
     {
         public static string endpoint = "localize";
@@ -299,7 +280,9 @@ namespace Immersal.REST
         public double latitude;
         public double longitude;
         public double ellipsoidHeight;
-        public float[] quaternion;
+        public double[] quaternion;
+        public int confidence;
+        public float time;
     }
 
     [Serializable]
@@ -595,5 +578,142 @@ namespace Immersal.REST
         public string error;
         public int id;
         public int size;
+    }
+
+    /*
+    Open Spatial Computing Platform (OSCP) compliant GeoPose support
+    
+    Protocol specification: https://github.com/OpenArCloud/oscp-geopose-protocol
+    Read more: https://www.openarcloud.org/oscp
+    */
+    public struct OSCPCameraModel
+    {
+        public const string UNKNOWN_CAMERA = "UNKNOWN_CAMERA";
+        public const string SIMPLE_PINHOLE = "SIMPLE_PINHOLE";
+        public const string SIMPLE_RADIAL = "SIMPLE_RADIAL";
+        public const string RADIAL = "RADIAL";
+        public const string PINHOLE = "PINHOLE";
+        public const string OPENCV = "OPENCV";
+        public const string FULL_OPENCV = "FULL_OPENCV";
+    }
+
+    public struct OSCPImageFormat
+    {
+        public const string JPG = "JPG";
+        public const string PNG = "PNG";
+        public const string GRAY8 = "GRAY8";
+        public const string RGB24 = "RGB24";
+        public const string RGBA32 = "RGBA32";
+    }
+
+    [Serializable]
+    public struct OSCPGeoPoseReq
+    {
+        public static string endpoint = "geoposeoscp";
+        public string id;
+        public long timestamp;
+        public string type;
+        public OSCPSensor[] sensors;
+        public OSCPSensorReadings sensorReadings;
+        public OSCPGeoPoseResp[] priorPoses;
+    }
+
+    [Serializable]
+    public struct OSCPGeoPoseResp
+    {
+        public string id;
+        public long timestamp;
+        public OSCPGeoPoseAccuracy accuracy;
+        public string type;
+        public OSCPGeoPose geopose;
+    }
+
+    [Serializable]
+    public struct OSCPGeoPose
+    {
+        public OSCPGeoPosition position;
+        public Quaternion quaternion;
+    }
+
+    [Serializable]
+    public struct OSCPGeoPosition
+    {
+        public double lat, lon, h;
+    }
+
+    [Serializable]
+    public struct OSCPGeoPoseAccuracy
+    {
+        public float position, orientation;
+    }
+
+    [Serializable]
+    public struct OSCPImageOrientation
+    {
+        public bool mirrored;
+        public int rotation;    // 0, 90, 180, 270
+    }
+
+    [Serializable]
+    public struct OSCPCameraParam
+    {
+        public string model;
+        public float[] modelParams; //[fx, fy, cx, cy]
+        public float[] minMaxDepth;
+        public float[] minMaxDisparity;
+    }
+
+    [Serializable]
+    public struct OSCPPrivacy
+    {
+        public string[] dataRetention;
+        public string[] dataAcceptableUse;
+        public string[] dataSanitizationApplied;
+        public string[] dataSanitizationRequested;
+    }
+
+    [Serializable]
+    public struct OSCPCameraReading
+    {
+        public long timestamp;
+        public string sensorId;
+        public OSCPPrivacy privacy;
+        public int sequenceNumber;
+        public string imageFormat;
+        public int[] size;
+        public string imageBytes;
+        public OSCPImageOrientation imageOrientation;
+        public OSCPCameraParam @params;
+    }
+
+    [Serializable]
+    public struct OSCPGeolocationReading
+    {
+        public long timestamp;
+        public string sensorId;
+        public OSCPPrivacy privacy;
+        public double latitude;
+        public double longitude;
+        public double altitude;
+        public double accuracy;
+        public double altitudeAccuracy;
+        public double heading;
+        public double speed;
+    }
+
+    [Serializable]
+    public struct OSCPSensorReadings
+    {
+        public OSCPCameraReading[] cameraReadings;
+        public OSCPGeolocationReading[] geolocationReadings;
+    }
+
+    [Serializable]
+    public struct OSCPSensor
+    {
+        public string id;
+        public string name;
+        public string model;
+        public string type;
     }
 }

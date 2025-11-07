@@ -163,11 +163,11 @@ namespace Immersal.XR
 			SetBurstMode(BurstMode);
 		}
 
-		private void Update()
+		private async void Update()
 		{
 			// update data processing chain
 			if (m_ProcessData)
-				m_SessionDataProcessingChain.UpdateChain();
+				await m_SessionDataProcessingChain.UpdateChain();
 
 			// bail out conditionals
 			if (!m_SessionIsRunning || !sdk.IsReady || !MapManager.HasRegisteredMaps)
@@ -266,6 +266,7 @@ namespace Immersal.XR
 			catch (Exception e)
 			{
 				ImmersalLogger.LogError($"Session task error: {e.Message}. Stopping session.");
+				ImmersalLogger.LogError($" {e.StackTrace} ");
 				m_SessionIsRunning = false;
 			}
 			finally
@@ -327,9 +328,9 @@ namespace Immersal.XR
 			OnResume?.Invoke();
 		}
 
-		public void TriggerResetSession()
+		public async void TriggerResetSession()
 		{
-			ResetSession();
+			await ResetSession();
 		}
 
 		public async Task ResetSession()

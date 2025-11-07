@@ -135,7 +135,7 @@ namespace Immersal.XR
 	        j.image = capture; //t.Result.Item1;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;
-			j.solverType = m_SolverType == SolverType.Prior ? 4 : 0;
+			j.solverType = m_SolverType == SolverType.Prior ? 4 : (int)m_SolverType;
 			
 			if (m_SolverType == SolverType.Prior &&
 			    m_previouslyLocalizedMapId != 0 &&
