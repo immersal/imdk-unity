@@ -29,7 +29,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.2.0";
+		public static string sdkVersion = "2.2.1";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		

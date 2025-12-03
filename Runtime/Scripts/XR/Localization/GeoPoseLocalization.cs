@@ -146,18 +146,26 @@ namespace Immersal.XR
                 double latitude = result.geopose.position.lat;
                 double longitude = result.geopose.position.lon;
 				double ellipsoidHeight = result.geopose.position.h;
-				double[] quatEcef = new double[4];
-				double[] quatEnu = new double[4] { result.geopose.quaternion.w, result.geopose.quaternion.x, result.geopose.quaternion.y, result.geopose.quaternion.z };
-		        ImmersalLogger.Log($"GeoPose returned latitude: {latitude}, longitude: {longitude}, ellipsoidHeight: {ellipsoidHeight}");
-		        ImmersalLogger.Log($"GeoPose returned ENU quaternion x: {result.geopose.quaternion.x}, y: {result.geopose.quaternion.y}, z: {result.geopose.quaternion.z}, w: {result.geopose.quaternion.w}");
-				Core.RotEnuToEcef(quatEcef, quatEnu, latitude, longitude, true);
+				double[] doubleEcef = new double[4];	// x,y,z,w
+				double[] doubleEnu = new double[4]
+				{
+					result.geopose.quaternion.x,
+					result.geopose.quaternion.y,
+					result.geopose.quaternion.z,
+					result.geopose.quaternion.w
+				};
+
+				Core.RotEnuToEcef(doubleEcef, doubleEnu, latitude, longitude, true);
+
+				Quaternion qEnu = new Quaternion((float)doubleEnu[0], (float)doubleEnu[1], (float)doubleEnu[2], (float)doubleEnu[3]);
+				Quaternion qEcef = new Quaternion((float)doubleEcef[0], (float)doubleEcef[1], (float)doubleEcef[2], (float)doubleEcef[3]);
+		        ImmersalLogger.Log($"GeoPose returned latitude: {latitude}, longitude: {longitude}, ellipsoidHeight: {ellipsoidHeight}, ENU quaternion: {qEnu}, ECEF quaternion: {qEcef}");
 
 		        double[] ecef = new double[3];
 		        double[] wgs84 = new double[3] { latitude, longitude, ellipsoidHeight };
 		        Core.PosWgs84ToEcef(ecef, wgs84);
 
 		        ImmersalLogger.Log($"GeoPose ECEF position x: {ecef[0]}, y: {ecef[1]}, z: {ecef[2]}");
-				ImmersalLogger.Log($"GeoPose ECEF quaternion x: {quatEcef[1]}, y: {quatEcef[2]}, z: {quatEcef[3]}, w: {quatEcef[0]}");
 
 				// for testing visually a map ID is required
 				int mapId = m_MapIds[0].id;
@@ -167,7 +175,6 @@ namespace Immersal.XR
 					{
 						double[] mapToEcef = entry.Map.MapToEcefGet();
 						mapToEcef[12] = 1.0; // force scale to 1.0
-						Quaternion qEcef = new Quaternion((float)quatEcef[1], (float)quatEcef[2], (float)quatEcef[3], (float)quatEcef[0]);
 						Core.PosEcefToMap(out Vector3 mapPos, ecef, mapToEcef);
 						Core.RotEcefToMap(out Quaternion mapRot, qEcef, mapToEcef);
 

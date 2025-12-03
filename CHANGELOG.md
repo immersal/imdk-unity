@@ -1,5 +1,16 @@
 # Changelog
 
+## [2.2.1] - 2025-12-03
+
+### Fixed
+- Core/plugins: Minor GeoPose fixes
+- Editor: Map alignment saving & loading
+- Samples: Prefab errors with missing script references
+- Compiler warnings
+
+### Changed
+- Updated all plugins to 2.2.1
+
 ## [2.2.0] - 2025-11-06
 
 ### Added

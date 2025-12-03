@@ -174,8 +174,19 @@ namespace Immersal.XR
 		        double latitude = result.latitude;
 		        double longitude = result.longitude;
 		        double ellipsoidHeight = result.ellipsoidHeight;
-				double[] quatEcef = new double[4];	// w,x,y,z
-				Core.RotEnuToEcef(quatEcef, result.quaternion, latitude, longitude, false);
+				double[] doubleEcef = new double[4];      // x,y,z,w
+				double[] doubleEnu = new double[4]
+				{
+					result.quaternion[1],
+					result.quaternion[2],
+					result.quaternion[3],
+					result.quaternion[0]
+				};
+
+				Core.RotEnuToEcef(doubleEcef, doubleEnu, latitude, longitude, false);
+
+				Quaternion qEnu = new Quaternion((float)doubleEnu[0], (float)doubleEnu[1], (float)doubleEnu[2], (float)doubleEnu[3]);
+				Quaternion qEcef = new Quaternion((float)doubleEcef[0], (float)doubleEcef[1], (float)doubleEcef[2], (float)doubleEcef[3]);
 
 		        double[] ecef = new double[3];
 		        double[] wgs84 = new double[3] { latitude, longitude, ellipsoidHeight };
@@ -185,7 +196,6 @@ namespace Immersal.XR
 		        {
 			        double[] mapToEcef = entry.Map.MapToEcefGet();
 					mapToEcef[12] = 1.0; // force scale to 1.0
-					Quaternion qEcef = new Quaternion((float)quatEcef[1], (float)quatEcef[2], (float)quatEcef[3], (float)quatEcef[0]);
 			        Core.PosEcefToMap(out Vector3 mapPos, ecef, mapToEcef);
 			        Core.RotEcefToMap(out Quaternion mapRot, qEcef, mapToEcef);
 			        

@@ -277,7 +277,7 @@ namespace Immersal.XR
 	        return localizationResults;
         }
         
-        public async Task<List<LocalizationTask>> CreateLocalizationTasks(ICameraData cameraData)
+        public Task<List<LocalizationTask>> CreateLocalizationTasks(ICameraData cameraData)
         {
 	        List<LocalizationTask> tasks = new List<LocalizationTask>();
 	        
@@ -287,7 +287,7 @@ namespace Immersal.XR
 		        tasks.Add(CreateNewLocalizationTask(localizationMethod, cameraData));
 	        }
 
-	        return tasks;
+			return Task.FromResult(tasks);
         }
         
         public async Task<ILocalizationResults> LocalizeAllMethods(ICameraData cameraData)

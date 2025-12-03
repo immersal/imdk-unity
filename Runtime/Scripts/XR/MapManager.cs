@@ -547,7 +547,7 @@ namespace Immersal.XR
         }
         
 
-        public static IEnumerator DownloadMapMetadata(int mapId, Action<SDKMapMetadataGetResult> resultCallback, string jsonWritePath = "")
+        public static IEnumerator DownloadMapMetadata(int mapId, Action<SDKMapMetadataGetResult> resultCallback, bool overwrite = false, string jsonWritePath = "")
         {
             string targetFullPath = GetDirectoryPath(jsonWritePath);
             if (!CheckDirectory(targetFullPath))
@@ -595,7 +595,7 @@ namespace Immersal.XR
 
                     string fileName = $"{result.id}-{result.name}-metadata.json";
                     string jsonFilePath = Path.Combine(targetFullPath, fileName);
-                    WriteJson(jsonFilePath, request.downloadHandler.text);
+                    WriteJson(jsonFilePath, request.downloadHandler.text, overwrite);
                     string assetPath = Path.Combine(GetDirectoryPath(jsonWritePath, true), fileName);
                     AssetDatabase.Refresh();
                     AssetDatabase.ImportAsset(assetPath);

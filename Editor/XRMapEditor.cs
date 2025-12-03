@@ -436,7 +436,7 @@ namespace Immersal.XR
 
         #region Alignment methods
         
-        private IEnumerator MapAlignmentLoad()
+        private IEnumerator MapAlignmentLoad(bool force = false)
         {
             //
             // Loads map metadata, updates XR Map metadata info, extracts the alignment, converts it to Unity's coordinate system and sets the map transform
@@ -444,16 +444,19 @@ namespace Immersal.XR
             
             XRMap obj = (XRMap)target;
             sdk = ImmersalSDK.Instance;
-            
-            // Check if metadata file exists already
-            string destinationFolder = MapManager.GetDirectoryPath();
-            string existingFilePath = Path.Combine(destinationFolder, $"{obj.mapId}-{obj.mapName}-metadata.json");
-            if (File.Exists(existingFilePath))
+
+            if (!force)
             {
-                XRMap.MetadataFile metadataFile = JsonUtility.FromJson<XRMap.MetadataFile>(File.ReadAllText(existingFilePath));
-                obj.SetMetadata(metadataFile, true);
-                obj.ApplyAlignment();
-                yield break;
+                // Check if metadata file exists already
+                string destinationFolder = MapManager.GetDirectoryPath();
+                string existingFilePath = Path.Combine(destinationFolder, $"{obj.mapId}-{obj.mapName}-metadata.json");
+                if (File.Exists(existingFilePath))
+                {
+                    XRMap.MetadataFile metadataFile = JsonUtility.FromJson<XRMap.MetadataFile>(File.ReadAllText(existingFilePath));
+                    obj.SetMetadata(metadataFile, true);
+                    obj.ApplyAlignment();
+                    yield break;
+                }
             }
             
             // Download
@@ -461,7 +464,7 @@ namespace Immersal.XR
             {
                 obj.SetMetadata(result, false);
                 obj.ApplyAlignment();
-            }), this);
+            }, force), this);
         }
         
         private IEnumerator MapAlignmentSave()
@@ -524,7 +527,7 @@ namespace Immersal.XR
                 if (result.error == "none")
                 {
                     // Reload the metadata from Immersal Cloud Service to keep local files in sync
-                    EditorCoroutineUtility.StartCoroutine(MapAlignmentLoad(), this);
+                    EditorCoroutineUtility.StartCoroutine(MapAlignmentLoad(true), this);
                 }
             }
         }
@@ -570,7 +573,7 @@ namespace Immersal.XR
                 if (result.error == "none")
                 {
                     // Reload the metadata from Immersal Cloud Service to keep local files in sync
-                    EditorCoroutineUtility.StartCoroutine(MapAlignmentLoad(), this);
+                    EditorCoroutineUtility.StartCoroutine(MapAlignmentLoad(true), this);
                 }
             }
         }
