@@ -24,7 +24,8 @@ namespace Immersal.XR
     {
         Default = 0,
         Lean = 1,
-        Prior = 2
+        Prior = 4,
+		CityScale = 5
     }
 	
 	public struct LocalizationResults : ILocalizationResults
@@ -441,11 +442,10 @@ namespace Immersal.XR
 	    public XRMap[] MapsToAdd { get; set; }
 	    public XRMap[] MapsToRemove { get; set; }
 	    public SolverType? SolverType { get; set; }
-	    [ObsoleteAttribute("PriorNNCount is obsolete. Use PriorNNCountMin/Max instead.", false)]
-	    public int? PriorNNCount { get; set; }
 	    public int? PriorNNCountMin { get; set; }
 	    public int? PriorNNCountMax { get; set; }
 	    public Vector3? PriorScale { get; set; }
 	    public float? PriorRadius { get; set; }
+	    public float? FilterRadius { get; set; }
     }
 }

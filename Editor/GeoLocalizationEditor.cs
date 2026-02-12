@@ -25,6 +25,7 @@ namespace Immersal.XR
         private SerializedProperty priorNNCountMaxProperty;
         private SerializedProperty priorScaleProperty;
         private SerializedProperty priorRadiusProperty;
+        private SerializedProperty filterRadiusProperty;
         
         private SerializedProperty onProgressEventProperty;
         
@@ -37,6 +38,7 @@ namespace Immersal.XR
             priorNNCountMaxProperty = serializedObject.FindProperty("m_PriorNNCountMax");
             priorScaleProperty = serializedObject.FindProperty("m_PriorScale");
             priorRadiusProperty = serializedObject.FindProperty("m_PriorRadius");
+            filterRadiusProperty = serializedObject.FindProperty("m_FilterRadius");
             
             onProgressEventProperty = serializedObject.FindProperty("OnProgress");
         }
@@ -53,7 +55,7 @@ namespace Immersal.XR
        
             EditorGUILayout.Separator();
             
-            if (solverTypeProperty.enumValueIndex is (int)SolverType.Prior or (int)SolverType.Lean)
+            if (solverTypeProperty.enumValueFlag is (int)SolverType.Prior or (int)SolverType.Lean)
             {
                 EditorGUILayout.HelpBox("This Solver type is experimental. Extensive testing is advised.", MessageType.Warning);
             }
@@ -61,12 +63,13 @@ namespace Immersal.XR
             // SolverType
             solverTypeProperty.enumValueIndex = EditorGUILayout.Popup("Solver type", solverTypeProperty.enumValueIndex, solverTypeProperty.enumNames);
 
-            if (solverTypeProperty.enumValueIndex == (int)SolverType.Prior)
+            if (solverTypeProperty.enumValueFlag == (int)SolverType.Prior)
             {
                 EditorGUILayout.PropertyField(priorNNCountMinProperty, new GUIContent("Nearest neighbour min"));
                 EditorGUILayout.PropertyField(priorNNCountMaxProperty, new GUIContent("Nearest neighbour max"));
                 EditorGUILayout.PropertyField(priorScaleProperty, new GUIContent("Scale"));
                 EditorGUILayout.PropertyField(priorRadiusProperty, new GUIContent("Radius"));
+                EditorGUILayout.PropertyField(filterRadiusProperty, new GUIContent("Filter radius"));
             }
             
             EditorGUILayout.Separator();

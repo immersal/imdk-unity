@@ -42,7 +42,10 @@ namespace Immersal.XR
 	    private Vector3 m_PriorScale = Vector3.one;
         
 	    [SerializeField]
-	    private float m_PriorRadius = 0f;
+	    private float m_PriorRadius = 6.0f;
+
+	    [SerializeField]
+	    private float m_FilterRadius = 0f;
 
 	    public ConfigurationMode ConfigurationMode => m_ConfigurationMode;
 	    
@@ -62,6 +65,7 @@ namespace Immersal.XR
 		    m_PriorNNCountMax = configuration.PriorNNCountMax ?? m_PriorNNCountMax;
 		    m_PriorScale = configuration.PriorScale ?? m_PriorScale;
 		    m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
+			m_FilterRadius = configuration.FilterRadius ?? m_FilterRadius;
 		    
 		    List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
 			
@@ -132,10 +136,10 @@ namespace Immersal.XR
 		        await t;
 	        }
 
-	        j.image = capture; //t.Result.Item1;
+	        j.image = capture;
 	        j.intrinsics = intrinsics;
 	        j.mapIds = m_MapIds;			
-	        j.solverType = m_SolverType == SolverType.Prior ? 4 : (int)m_SolverType;
+	        j.solverType = (int)m_SolverType;
 	        
 	        if (m_SolverType == SolverType.Prior &&
 	            m_PreviouslyLocalizedMapId != 0 &&
@@ -150,16 +154,18 @@ namespace Immersal.XR
 		        j.priorNNCountMax = m_PriorNNCountMax;
 		        j.priorScale = m_PriorScale;
 		        j.priorRadius = m_PriorRadius;
+				j.filterRadius = m_FilterRadius;
 	        }
 	        else
 	        {
 		        // previously localized map not found, reset
 		        m_PreviouslyLocalizedMapId = 0;
 	        }
-	        
-	        Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.Orientation;
-	        rot.SwitchHandedness();
-	        j.rotation = rot;
+
+			Quaternion rot = cameraData.CameraRotationOnCapture;
+			rot.AdjustForScreenOrientation();
+			rot.SwitchHandedness();
+			j.rotation = rot;
 
 			SDKGeoPoseResult result = await j.RunJobAsync(cancellationToken);
 			string resultJson = JsonUtility.ToJson(result);

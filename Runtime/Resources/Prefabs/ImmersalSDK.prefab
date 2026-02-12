@@ -161,8 +161,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_ConfigurationMode: 1
   m_SolverType: 0
-  m_PriorNNCount: 0
-  m_PriorRadius: 0
+  m_PriorNNCountMin: 60
+  m_PriorNNCountMax: 720
+  m_PriorScale: {x: 1, y: 1, z: 1}
+  m_PriorRadius: 6
+  m_FilterRadius: 0
 --- !u!1 &4483478919481266077
 GameObject:
   m_ObjectHideFlags: 0
@@ -390,7 +393,8 @@ MonoBehaviour:
   m_PriorNNCountMin: 60
   m_PriorNNCountMax: 720
   m_PriorScale: {x: 1, y: 1, z: 1}
-  m_PriorRadius: 0
+  m_PriorRadius: 6
+  m_FilterRadius: 0
   OnProgress:
     m_PersistentCalls:
       m_Calls: []

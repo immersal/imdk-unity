@@ -39,7 +39,7 @@ namespace Immersal.XR
             
             if (filterMethodProperty.enumValueIndex == (int)FilterMethod.Legacy)
             {
-                EditorGUILayout.HelpBox("Legacy filtering method is can cause issues with large maps and offsets. The simple filtering method is recommended instead.", MessageType.Warning);
+                EditorGUILayout.HelpBox("Legacy filtering method can cause issues with large maps and offsets. The simple (default) filtering method is recommended instead.", MessageType.Warning);
             }
             else if (filterMethodProperty.enumValueIndex == (int)FilterMethod.Advanced)
             {

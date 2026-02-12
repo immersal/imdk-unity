@@ -245,12 +245,13 @@ namespace Immersal
         {
             int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
             Vector4 intrinsics = cameraData.Intrinsics;
-            Quaternion r = cameraData.CameraRotationOnCapture * cameraData.Orientation;
+            Quaternion r = cameraData.CameraRotationOnCapture;
+            r.AdjustForScreenOrientation();
             r.SwitchHandedness();
             return LocalizeImage(cameraData.Width, cameraData.Height, ref intrinsics, pixelBuffer, channels, solverType, ref r);
         }
         
-        public static LocalizeInfo LocalizeImageWithPrior(ICameraData cameraData, IntPtr pixelBuffer, ref Vector3 priorPos, int priorNNCount, float priorRadius)
+        public static LocalizeInfo LocalizeImageWithPrior(ICameraData cameraData, IntPtr pixelBuffer, ref Vector3 priorPos, ref Vector3 priorScale, int priorNNCountMin, int priorNNCountMax, float priorRadius, float filterRadius)
         {
             int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
             Vector4 intrinsics = cameraData.Intrinsics;
@@ -260,7 +261,7 @@ namespace Immersal
             {
                 GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
                 LocalizeInfo result = Native.icvLocalizePrior(n, intHandle.AddrOfPinnedObject(), cameraData.Width, cameraData.Height,
-                    ref intrinsics, pixelBuffer, channels, ref priorPos, priorNNCount, priorRadius);
+                    ref intrinsics, pixelBuffer, channels, ref priorPos, ref priorScale, priorNNCountMin, priorNNCountMax, priorRadius, filterRadius);
                 if (intHandle.IsAllocated) intHandle.Free();
                 
                 // result.mapId is a handle at this point -> convert
@@ -551,7 +552,7 @@ namespace Immersal
         
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern LocalizeInfo icvLocalizePrior(int n, IntPtr handles, int width,
-            int height, ref Vector4 intrinsics, IntPtr pixels, int channels, ref Vector3 priorPos, int priorNNCount, float priorRadius);
+            int height, ref Vector4 intrinsics, IntPtr pixels, int channels, ref Vector3 priorPos, ref Vector3 priorScale, int priorNNCountMin, int priorNNCountMax, float priorRadius, float filterRadius);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvPosMapToEcef(IntPtr ecef, ref Vector3 map, IntPtr mapToEcef);

@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.3.0] - 2026-02-12
+
+### Added
+- `DeviceLocalization.cs`: prior neighbour min/max/radius parameters to the Prior solver type to achieve feature parity with the on-server localizer
+- `filterRadius` parameter to localizers
+- Default parameters for the prior solver type (plugin currently crashes with '0' values)
+
+### Fixed
+- `SolverType` enum now uses actual values instead of indices
+- Samples: `MapDownloadSample` "Use filtering" toggle
+- Plugin: some memory alignment bugs
+
+### Changed
+- `ICameraData.Orientation` has been replaced with `ImageOrientation`, which is based on Unity’s `DeviceOrientation` (note that this differs from `ScreenOrientation`). For example, when the build target uses Auto Rotation, `ScreenOrientation` changes as the device rotates. However, when the build target is locked (e.g., Portrait), `ScreenOrientation` remains fixed even as the device physically rotates. `DeviceOrientation`, on the other hand, always reflects the device’s physical orientation regardless of the chosen screen orientation. `ImageOrientation` represents how many degrees the raw camera image must be rotated (in Euler angles) to appear upright in portrait. For example: if an iPhone is physically held in portrait, ARKit provides the camera image rotated 90° CCW, so `ImageOrientation = 90` meaning "rotate the image 90° clockwise to make it upright".
+- In `ARFoundationSupport.cs`, `SetOrientationOverride()` has been replaced by a Quaternion extension method: `AdjustForScreenOrientation(ScreenOrientation? overrideOrientation = null)`. This change mainly affects very specific/advanced use cases.
+- Updated Unity packages
+
 ## [2.2.1] - 2025-12-03
 
 ### Fixed

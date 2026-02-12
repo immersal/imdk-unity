@@ -534,7 +534,8 @@ namespace Immersal.REST
         public Vector3 priorScale = Vector3.one;
         public int priorNNCountMin = 60;
         public int priorNNCountMax = 720;
-        public float priorRadius;
+        public float priorRadius = 6.0f;
+        public float filterRadius = 0f;
 
         public override async Task<SDKLocalizeResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
@@ -562,6 +563,7 @@ namespace Immersal.REST
             r.priorScaleY = priorScale.y;
             r.priorScaleZ = priorScale.z;
             r.priorRadius = priorRadius;
+            r.filterRadius = filterRadius;
 
             SDKLocalizeResult result = await ImmersalHttp.RequestUpload<SDKLocalizeRequest, SDKLocalizeResult>(r, this.image, this.Progress, cancellationToken);
 
@@ -590,7 +592,7 @@ namespace Immersal.REST
         public byte[] image;
         public int width;
         public int height;
-        public int orientation = 0;
+        public uint orientation = 0;
         public bool mirrored = false;
 
         public override async Task<OSCPGeoPoseResp> RunJobAsync(CancellationToken cancellationToken = default)
@@ -679,7 +681,8 @@ namespace Immersal.REST
         public Vector3 priorScale = Vector3.one;
         public int priorNNCountMin = 60;
         public int priorNNCountMax = 720;
-        public float priorRadius;
+        public float priorRadius = 6.0f;
+        public float filterRadius = 0f;
 
         public override async Task<SDKGeoPoseResult> RunJobAsync(CancellationToken cancellationToken = default)
         {
@@ -706,6 +709,7 @@ namespace Immersal.REST
             r.priorScaleY = priorScale.y;
             r.priorScaleZ = priorScale.z;
             r.priorRadius = priorRadius;
+            r.filterRadius = filterRadius;
 
             SDKGeoPoseResult result = await ImmersalHttp.RequestUpload<SDKGeoPoseRequest, SDKGeoPoseResult>(r, this.image, this.Progress, cancellationToken);
             if (result.error == "none")

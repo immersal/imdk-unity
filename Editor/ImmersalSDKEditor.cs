@@ -115,7 +115,7 @@ namespace Immersal
             EditorGUILayout.Separator();
             EditorGUILayout.Separator();
 
-            EditorGUILayout.LabelField("(C) 2025 Immersal - Part of Hexagon. All Right Reserved.");
+            EditorGUILayout.LabelField("(C) 2026 Immersal - Part of Hexagon. All Right Reserved.");
         }
 
         void OnInspectorUpdate()

@@ -132,9 +132,9 @@ namespace Immersal.XR
 		{
 			Vector3 pos = data.LocalizeInfo.position;
 			Quaternion rot = data.LocalizeInfo.rotation;
-			rot *= data.CameraData.Orientation;
-			pos.SwitchHandedness();
+			rot.AdjustForScreenOrientation();
 			rot.SwitchHandedness();
+			pos.SwitchHandedness();
 			Matrix4x4 imSpacePose = Matrix4x4.TRS(pos, rot, Vector3.one);
 			return data.TrackerSpace * imSpacePose.inverse;
 		}

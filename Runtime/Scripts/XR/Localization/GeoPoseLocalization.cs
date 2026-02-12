@@ -122,7 +122,7 @@ namespace Immersal.XR
             j.width = width;
             j.height = height;
 	        j.intrinsics = cameraData.Intrinsics;
-            j.orientation = (int)cameraData.Orientation.eulerAngles.z;
+			j.orientation = cameraData.ImageOrientation;
             j.mirrored = false;
             j.latitude = m_LocationProvider.Latitude;
             j.longitude = m_LocationProvider.Longitude;

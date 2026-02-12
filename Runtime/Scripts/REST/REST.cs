@@ -221,6 +221,7 @@ namespace Immersal.REST
         public int priorNeighborCountMin;
         public int priorNeighborCountMax;
         public double priorRadius;
+        public double filterRadius;
     }
 
     [Serializable]
@@ -247,6 +248,7 @@ namespace Immersal.REST
         public int priorNeighborCountMin;
         public int priorNeighborCountMax;
         public double priorRadius;
+        public double filterRadius;
     }
 
     [Serializable]
@@ -651,7 +653,7 @@ namespace Immersal.REST
     public struct OSCPImageOrientation
     {
         public bool mirrored;
-        public int rotation;    // 0, 90, 180, 270
+        public uint rotation;    // 0, 90, 180, 270
     }
 
     [Serializable]

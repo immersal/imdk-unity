@@ -45,6 +45,23 @@ namespace Immersal.XR
             b = m.GetColumn(3);
             return b;
         }
+
+        public static Quaternion AdjustForScreenOrientation(this ref Quaternion q, ScreenOrientation? overrideOrientation = null)
+        {
+            ScreenOrientation so = overrideOrientation ?? Screen.orientation;
+
+            float angle = so switch
+            {
+                ScreenOrientation.Portrait => 90f,
+                ScreenOrientation.LandscapeLeft => 180f,
+                ScreenOrientation.LandscapeRight => 0f,
+                ScreenOrientation.PortraitUpsideDown => -90f,
+                _ => 0f
+            };
+
+            q *= Quaternion.Euler(0f, 0f, angle);
+            return q;
+        }
         
         public static double[] QuaternionsToDoubleMatrix3x3(this XRMap.MapAlignment ma)
         {

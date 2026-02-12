@@ -37,18 +37,18 @@ namespace Immersal.Samples
             m_Space.ProcessPoses = value;
         }
 
-        public void SetSolverType(int solverTypeIndex)
+        public void SetSolverType(SolverType solverType)
         {
             foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
             {
                 localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
                 {
-                    SolverType = (SolverType)solverTypeIndex
+                    SolverType = solverType
                 });
             }
         }
 
-        public void SetPriorNNCount(string input)
+        public void SetPriorNNCountMin(string input)
         {
             int newCount = int.Parse(input);
             foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
@@ -56,6 +56,18 @@ namespace Immersal.Samples
                 localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
                 {
                     PriorNNCountMin = newCount
+                });
+            }
+        }
+
+        public void SetPriorNNCountMax(string input)
+        {
+            int newCount = int.Parse(input);
+            foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
+            {
+                localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
+                {
+                    PriorNNCountMax = newCount
                 });
             }
         }
@@ -71,7 +83,18 @@ namespace Immersal.Samples
                 });
             }
         }
-        
+
+        public void SetFilterRadius(string input)
+        {
+            float newRadius = float.Parse(input);
+            foreach (ILocalizationMethod localizationMethod in ImmersalSDK.Instance.Localizer.AvailableLocalizationMethods)
+            {
+                localizationMethod.Configure(new DefaultLocalizationMethodConfiguration
+                {
+                    FilterRadius = newRadius
+                });
+            }
+        }
 
         public void Pause()
         {

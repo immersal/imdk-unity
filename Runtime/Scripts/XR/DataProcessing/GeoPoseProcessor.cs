@@ -101,9 +101,9 @@ namespace Immersal.XR
                 
                 Vector3 pos = data.LocalizationResult.LocalizeInfo.position;
                 Quaternion rot = data.LocalizationResult.LocalizeInfo.rotation;
-                rot *= data.PlatformResult.CameraData.Orientation;
-                pos.SwitchHandedness();
+                rot.AdjustForScreenOrientation();
                 rot.SwitchHandedness();
+                pos.SwitchHandedness();
                 
                 // Bring pose to tracker space
                 MapToSpaceRelation mo = data.Entry.Relation;

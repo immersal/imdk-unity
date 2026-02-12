@@ -328,9 +328,9 @@ namespace Immersal.Samples.Mapping
 
             Vector3 pos = cameraData.CameraPositionOnCapture;
             Quaternion r = cameraData.CameraRotationOnCapture;
-            r *= cameraData.Orientation;
-            pos.SwitchHandedness();
+            r.AdjustForScreenOrientation();
             r.SwitchHandedness();
+            pos.SwitchHandedness();
             Vector4 intrinsics = cameraData.Intrinsics;
 
             int result = await Task.Run(() => Immersal.Core.MapAddImage(imageData.UnmanagedDataPointer, cameraData.Width,

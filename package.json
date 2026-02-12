@@ -1,6 +1,6 @@
 {
   "name": "com.immersal.core",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "displayName": "Immersal SDK",
   "description": "Immersal Unity SDK is a toolkit for developing spatial augmented reality experiences with the Unity engine.",
   "unity": "2022.3",
@@ -8,9 +8,9 @@
   "changelogUrl": "https://developers.immersal.com/docs/unitysdk/changelog/",
   "dependencies": {
     "com.unity.feature.development": "1.0.1",
-    "com.unity.xr.arcore": "5.2.0",
-    "com.unity.xr.arfoundation": "5.2.0",
-    "com.unity.xr.arkit": "5.2.0",
+    "com.unity.xr.arcore": "5.2.2",
+    "com.unity.xr.arfoundation": "5.2.2",
+    "com.unity.xr.arkit": "5.2.2",
     "com.unity.xr.openxr": "1.15.0",
     "com.unity.textmeshpro": "3.0.9",
     "com.unity.modules.ui": "1.0.0",

@@ -33,6 +33,7 @@ namespace Immersal.XR
         int? PriorNNCountMax { get; }
         Vector3? PriorScale { get; }
         float? PriorRadius { get; }
+        float? FilterRadius { get; }
     }
 
     public enum ConfigurationMode

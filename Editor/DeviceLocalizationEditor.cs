@@ -21,19 +21,22 @@ namespace Immersal.XR
         private SerializedProperty configurationMode;
         private SerializedProperty solverTypeProperty;
         
-        private SerializedProperty priorNNCountProperty;
+        private SerializedProperty priorNNCountMinProperty;
+        private SerializedProperty priorNNCountMaxProperty;
         private SerializedProperty priorScaleProperty;
         private SerializedProperty priorRadiusProperty;
-        
-        private SerializedProperty onProgressEventProperty;
+        private SerializedProperty filterRadiusProperty;
         
         private void OnEnable()
         {
             configurationMode = serializedObject.FindProperty("m_ConfigurationMode");
             solverTypeProperty = serializedObject.FindProperty("m_SolverType");
             
-            priorNNCountProperty = serializedObject.FindProperty("m_PriorNNCount");
+            priorNNCountMinProperty = serializedObject.FindProperty("m_PriorNNCountMin");
+            priorNNCountMaxProperty = serializedObject.FindProperty("m_PriorNNCountMax");
+            priorScaleProperty = serializedObject.FindProperty("m_PriorScale");
             priorRadiusProperty = serializedObject.FindProperty("m_PriorRadius");
+            filterRadiusProperty = serializedObject.FindProperty("m_FilterRadius");
         }
 
         public override void OnInspectorGUI()
@@ -48,7 +51,7 @@ namespace Immersal.XR
        
             EditorGUILayout.Separator();
             
-            if (solverTypeProperty.enumValueIndex is (int)SolverType.Prior or (int)SolverType.Lean)
+            if (solverTypeProperty.enumValueFlag is (int)SolverType.Prior or (int)SolverType.Lean)
             {
                 EditorGUILayout.HelpBox("This Solver type is experimental. Extensive testing is advised.", MessageType.Warning);
             }
@@ -56,10 +59,13 @@ namespace Immersal.XR
             // SolverType
             solverTypeProperty.enumValueIndex = EditorGUILayout.Popup("Solver type", solverTypeProperty.enumValueIndex, solverTypeProperty.enumNames);
 
-            if (solverTypeProperty.enumValueIndex == (int)SolverType.Prior)
+            if (solverTypeProperty.enumValueFlag == (int)SolverType.Prior)
             {
-                EditorGUILayout.PropertyField(priorNNCountProperty, new GUIContent("Nearest neighbour min"));
+                EditorGUILayout.PropertyField(priorNNCountMinProperty, new GUIContent("Nearest neighbour min"));
+                EditorGUILayout.PropertyField(priorNNCountMaxProperty, new GUIContent("Nearest neighbour max"));
+                EditorGUILayout.PropertyField(priorScaleProperty, new GUIContent("Scale"));
                 EditorGUILayout.PropertyField(priorRadiusProperty, new GUIContent("Radius"));
+                EditorGUILayout.PropertyField(filterRadiusProperty, new GUIContent("Filter radius"));
             }
             
             // Apply

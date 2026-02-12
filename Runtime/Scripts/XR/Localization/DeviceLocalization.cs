@@ -32,10 +32,19 @@ namespace Immersal.XR
         private SolverType m_SolverType = SolverType.Default;
 
         [SerializeField]
-        private int m_PriorNNCount = 0;
+        private int m_PriorNNCountMin = 60;
+
+        [SerializeField]
+        private int m_PriorNNCountMax = 720;
+
+	    [SerializeField]
+	    private Vector3 m_PriorScale = Vector3.one;
         
         [SerializeField]
-        private float m_PriorRadius = 0f;
+        private float m_PriorRadius = 6.0f;
+
+        [SerializeField]
+        private float m_FilterRadius = 0f;
         
         public ConfigurationMode ConfigurationMode => m_ConfigurationMode;
 
@@ -51,8 +60,11 @@ namespace Immersal.XR
         public Task<bool> Configure(ILocalizationMethodConfiguration configuration)
         {
             m_SolverType = configuration.SolverType ?? m_SolverType;
-            m_PriorNNCount = configuration.PriorNNCountMin ?? m_PriorNNCount;
+            m_PriorNNCountMin = configuration.PriorNNCountMin ?? m_PriorNNCountMin;
+            m_PriorNNCountMax = configuration.PriorNNCountMax ?? m_PriorNNCountMax;
+            m_PriorScale = configuration.PriorScale ?? m_PriorScale;
             m_PriorRadius = configuration.PriorRadius ?? m_PriorRadius;
+            m_FilterRadius = configuration.FilterRadius ?? m_FilterRadius;
             
             List<SDKMapId> mapList = m_MapIds != null ? m_MapIds.ToList() : new List<SDKMapId>();
             
@@ -103,7 +115,7 @@ namespace Immersal.XR
                     Matrix4x4 mapPoseWithRelation = entry.SceneParent.ToMapSpace(pos, Quaternion.identity);
                     Vector3 priorPos = entry.Relation.ApplyInverseRelation(mapPoseWithRelation).GetPosition();
                     priorPos.SwitchHandedness();
-                    locInfo = await Task.Run(() => Immersal.Core.LocalizeImageWithPrior(cameraData, imageData.UnmanagedDataPointer, ref priorPos, m_PriorNNCount, m_PriorRadius), cancellationToken);
+                    locInfo = await Task.Run(() => Immersal.Core.LocalizeImageWithPrior(cameraData, imageData.UnmanagedDataPointer, ref priorPos, ref m_PriorScale, m_PriorNNCountMin, m_PriorNNCountMax, m_PriorRadius, m_FilterRadius), cancellationToken);
             }
             else
             {

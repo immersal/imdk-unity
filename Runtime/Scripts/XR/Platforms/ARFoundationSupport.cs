@@ -36,9 +36,6 @@ namespace Immersal.XR
         private IPlatformConfiguration m_Configuration;
         private bool m_ConfigDone = false;
 
-        private bool m_OverrideScreenOrientation = false;
-        private ScreenOrientation m_ScreenOrientationOverride = ScreenOrientation.Portrait;
-
         public ARCameraManager cameraManager
         {
             get
@@ -294,10 +291,24 @@ namespace Immersal.XR
                 Channels = cameraDataFormat == CameraDataFormat.SingleChannel ? 1 : 3,
                 CameraPositionOnCapture = m_CameraTransform.position,
                 CameraRotationOnCapture = m_CameraTransform.rotation,
-                Orientation = GetOrientation()
+                ImageOrientation = GetImageOrientation()
             };
 
             return (true, data);
+        }
+
+        public uint GetImageOrientation()
+        {
+            uint angle = Input.deviceOrientation switch
+            {
+                DeviceOrientation.Portrait => 90,
+                DeviceOrientation.LandscapeRight => 180,
+                DeviceOrientation.LandscapeLeft => 0,
+                DeviceOrientation.PortraitUpsideDown => 270,
+                _ => 0
+            };
+
+            return angle;
         }
 
         public bool GetIntrinsics(out Vector4 intrinsics)
@@ -316,32 +327,6 @@ namespace Immersal.XR
             }
 
             return success;
-        }
-
-        public void SetOrientationOverride(ScreenOrientation newOrientation)
-        {
-            m_OverrideScreenOrientation = true;
-            m_ScreenOrientationOverride = newOrientation;
-        }
-
-        public void DisableOrientationOverride()
-        {
-            m_OverrideScreenOrientation = false;
-        }
-        
-        public Quaternion GetOrientation()
-        {
-            ScreenOrientation orientation =
-                m_OverrideScreenOrientation ? m_ScreenOrientationOverride : Screen.orientation;
-            float angle = orientation switch
-            {
-                ScreenOrientation.Portrait => 90f,
-                ScreenOrientation.LandscapeLeft => 180f,
-                ScreenOrientation.LandscapeRight => 0f,
-                ScreenOrientation.PortraitUpsideDown => -90f,
-                _ => 0f
-            };
-            return Quaternion.Euler(0f, 0f, angle);
         }
 
         private void OnEnable()

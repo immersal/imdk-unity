@@ -21,16 +21,16 @@ namespace Immersal.XR
         private SerializedProperty configurationMode;
 
         private SerializedProperty onProgressEventProperty;
-        private SerializedProperty locationProvider;
-        private SerializedProperty searchRadius;
+        private SerializedProperty locationProviderProperty;
+        private SerializedProperty searchRadiusProperty;
 
         private void OnEnable()
         {
             configurationMode = serializedObject.FindProperty("m_ConfigurationMode");
 
             onProgressEventProperty = serializedObject.FindProperty("OnProgress");
-            locationProvider = serializedObject.FindProperty("m_LocationProvider");
-            searchRadius = serializedObject.FindProperty("m_SearchRadius");
+            locationProviderProperty = serializedObject.FindProperty("m_LocationProvider");
+            searchRadiusProperty = serializedObject.FindProperty("m_SearchRadius");
         }
 
         public override void OnInspectorGUI()
@@ -45,7 +45,7 @@ namespace Immersal.XR
 
             EditorGUILayout.Separator();
 
-            EditorGUILayout.PropertyField(locationProvider, new GUIContent("GPS location provider"));
+            EditorGUILayout.PropertyField(locationProviderProperty, new GUIContent("GPS location provider"));
 
             EditorGUILayout.Separator();
 
@@ -57,7 +57,7 @@ namespace Immersal.XR
 
             EditorGUILayout.HelpBox("Optional Immersal-specific parameters that are not part of the OSCP GeoPose Protocol definition", MessageType.Info);
 
-            EditorGUILayout.PropertyField(searchRadius, new GUIContent("Search radius in metres"));
+            EditorGUILayout.PropertyField(searchRadiusProperty, new GUIContent("Search radius in metres"));
 
             // Apply
             serializedObject.ApplyModifiedProperties();

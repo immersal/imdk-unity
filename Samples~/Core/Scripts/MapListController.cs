@@ -28,6 +28,8 @@ namespace Immersal.Samples
     {
         [SerializeField]
         private LocalizationMethodChoice m_LocMethodChoice = LocalizationMethodChoice.OnDevice; 
+        [SerializeField]
+        private XRSpace m_XrSpace = null;
         
         private List<SDKJob> m_Maps;
         private TMP_Dropdown m_Dropdown;
@@ -115,6 +117,7 @@ namespace Immersal.Samples
                     LocalizationMethodType = m_LocMethodChoice == LocalizationMethodChoice.OnDevice
                         ? typeof(DeviceLocalization)
                         : typeof(ServerLocalization),
+                    SceneParent = m_XrSpace,
                     MapOptions = new IMapOption[] { m_MLO }
                 };
 

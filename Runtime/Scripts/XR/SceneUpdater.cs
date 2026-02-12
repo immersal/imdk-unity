@@ -40,9 +40,9 @@ namespace Immersal.XR
 		    Quaternion localizedRot = locInfo.rotation;
 		    
 		    // Apply device specific orientation and switch handedness to align with Unity
-		    localizedRot *= cameraData.Orientation;
-		    localizedPos.SwitchHandedness();
+			localizedRot.AdjustForScreenOrientation();
 		    localizedRot.SwitchHandedness();
+		    localizedPos.SwitchHandedness();
 		
 		    // Apply map to space relative transform (map pose in the scene)
 		    MapToSpaceRelation mo = entry.Relation;
