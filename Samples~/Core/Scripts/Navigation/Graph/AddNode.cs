@@ -52,7 +52,7 @@ namespace Immersal.Samples.Navigation
         {
             button = GetComponent<Button>();
             mainCamera = Camera.main;
-            arspace = FindObjectOfType<XRSpace>();
+            arspace = FindFirstObjectByType<XRSpace>();
         }
 
         void Update()

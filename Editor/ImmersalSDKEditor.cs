@@ -66,7 +66,7 @@ namespace Immersal
         public void OnPreprocessBuild(BuildReport report)
         {
             // ARMaps
-            XRMap[] maps = FindObjectsOfType<XRMap>();
+            XRMap[] maps = FindObjectsByType<XRMap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             foreach (XRMap map in maps)
             {
                 if (!map.PreBuildCheck(out string msg))

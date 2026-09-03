@@ -162,8 +162,7 @@ namespace Immersal.XR
 		        m_PreviouslyLocalizedMapId = 0;
 	        }
 
-			Quaternion rot = cameraData.CameraRotationOnCapture;
-			rot.AdjustForScreenOrientation();
+			Quaternion rot = cameraData.CameraRotationOnCapture * cameraData.ScreenOrientation;
 			rot.SwitchHandedness();
 			j.rotation = rot;
 

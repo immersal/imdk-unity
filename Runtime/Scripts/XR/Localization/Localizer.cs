@@ -25,7 +25,7 @@ namespace Immersal.XR
         Default = 0,
         Lean = 1,
         Prior = 4,
-		CityScale = 5
+		PriorGlobal = 6
     }
 	
 	public struct LocalizationResults : ILocalizationResults

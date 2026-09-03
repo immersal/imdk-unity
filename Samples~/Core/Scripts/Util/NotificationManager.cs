@@ -27,7 +27,7 @@ namespace Immersal.Samples.Util
 #if UNITY_EDITOR
                 if (instance == null && !Application.isPlaying)
                 {
-                    instance = UnityEngine.Object.FindObjectOfType<NotificationManager>();
+                    instance = UnityEngine.Object.FindFirstObjectByType<NotificationManager>();
                 }
 #endif
                 if (instance == null)

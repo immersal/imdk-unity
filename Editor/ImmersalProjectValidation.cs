@@ -1,5 +1,5 @@
 /*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal - Part of Hexagon. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -315,7 +315,7 @@ namespace Immersal
         private static IImmersalProjectIssueProvider m_DefaultIssueProvider = new DefaultImmersalProjectIssueProvider();
         private static Dictionary<string, IImmersalProjectIssueProvider> m_IssueProviders = new Dictionary<string, IImmersalProjectIssueProvider>();
 
-        public static BuildTargetGroup ActiveBuildTargetGroup = ActiveBuildTarget switch
+        public static BuildTargetGroup ActiveBuildTargetGroup => ActiveBuildTarget switch
         {
             BuildTarget.iOS => BuildTargetGroup.iOS,
             BuildTarget.Android => BuildTargetGroup.Android,
@@ -326,6 +326,9 @@ namespace Immersal
             BuildTarget.WSAPlayer => BuildTargetGroup.WSA,
             _ => BuildTargetGroup.Unknown
         };
+
+        public static NamedBuildTarget ActiveNamedBuildTarget =>
+            NamedBuildTarget.FromBuildTargetGroup(ActiveBuildTargetGroup);
         
         public static BuildTarget ActiveBuildTarget => EditorUserBuildSettings.activeBuildTarget;
         
@@ -400,7 +403,6 @@ namespace Immersal
                 },
                 Fix = () =>
                 {
-                    GraphicsDeviceType[] cga = PlayerSettings.GetGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget);
                     var autoGraphicAPI = PlayerSettings.GetUseDefaultGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget);
                     if (autoGraphicAPI)
                         PlayerSettings.SetUseDefaultGraphicsAPIs(ImmersalProjectValidation.ActiveBuildTarget, false);
@@ -421,8 +423,8 @@ namespace Immersal
             new ImmersalProjectIssue()
             {
                 Message = () => "IL2CPP must be enabled.",
-                Check = () => PlayerSettings.GetScriptingBackend(ImmersalProjectValidation.ActiveBuildTargetGroup) == ScriptingImplementation.IL2CPP,
-                Fix = () => { PlayerSettings.SetScriptingBackend(ImmersalProjectValidation.ActiveBuildTargetGroup, ScriptingImplementation.IL2CPP); },
+                Check = () => PlayerSettings.GetScriptingBackend(ImmersalProjectValidation.ActiveNamedBuildTarget) == ScriptingImplementation.IL2CPP,
+                Fix = () => { PlayerSettings.SetScriptingBackend(ImmersalProjectValidation.ActiveNamedBuildTarget, ScriptingImplementation.IL2CPP); },
                 Error = true,
             },
             // Allow unsafe code
@@ -504,7 +506,7 @@ namespace Immersal
             new ImmersalProjectIssue()
             {
                 Message = () => "Universal Render Pipeline is recommended",
-                Check = () => GraphicsSettings.defaultRenderPipeline != null,
+                Check = () => GraphicsSettings.currentRenderPipeline is UniversalRenderPipelineAsset,
                 Fix = SetupRenderPipeline,
                 Error = false,
                 RequiresManualFix = false
@@ -541,48 +543,41 @@ namespace Immersal
         
         private static void SetupRenderPipeline()
         {
-            string destinationPath = Application.dataPath;
-            
-            // Renderer and RenderPipelineAsset
-            if (CopyFromPackage("Editor/ImmersalURPAsset_Renderer.asset", Path.Combine(destinationPath, "ImmersalURPAsset_Renderer.asset"), true))
+            const string rendererDataPath = "Assets/ImmersalURPAsset_Renderer.asset";
+            const string renderPipelineAssetPath = "Assets/ImmersalURPAsset.asset";
+
+            UniversalRendererData rendererData =
+                AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererDataPath);
+
+            if (rendererData == null)
             {
-                // Load RendererData
-                string rendererDataPath = Path.Combine("Assets", "ImmersalURPAsset_Renderer.asset");
-                UniversalRendererData rendererData =
-                    (UniversalRendererData)AssetDatabase.LoadAssetAtPath(rendererDataPath, typeof(UniversalRendererData));
-
-                if (rendererData != null)
-                {
-                    // Create / load RenderPipelineAsset
-                    UniversalRenderPipelineAsset rpa = UniversalRenderPipelineAsset.Create(rendererData);
-                    
-                    // Save to file
-                    string rpaSavePath = Path.Combine("Assets", "ImmersalURPAsset.asset");
-                    AssetDatabase.CreateAsset(rpa, rpaSavePath);
-                    
-                    // Configure
-                    ConfigureRenderPipelineAsset(rpa);
-
-                    // Set in settings
-                    GraphicsSettings.defaultRenderPipeline = rpa;
-                    QualitySettings.renderPipeline = rpa;
-                    
-                }
+                rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
+                AssetDatabase.CreateAsset(rendererData, rendererDataPath);
             }
 
-            // Global Settings
-            if (CopyFromPackage("Editor/ImmersalURPGlobalSettings.asset", Path.Combine(destinationPath, "ImmersalURPGlobalSettings.asset"), true))
+            UniversalRenderPipelineAsset renderPipelineAsset =
+                AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(renderPipelineAssetPath);
+
+            if (renderPipelineAsset == null)
             {
-                string settingsPath = Path.Combine("Assets", "ImmersalURPGlobalSettings.asset");
-                RenderPipelineGlobalSettings settings =
-                    (RenderPipelineGlobalSettings)AssetDatabase.LoadAssetAtPath(settingsPath,
-                        typeof(RenderPipelineGlobalSettings));
-                
-                if (settings != null)
-                {
-                    GraphicsSettings.RegisterRenderPipelineSettings<UniversalRenderPipeline>(settings);
-                }
+                renderPipelineAsset = UniversalRenderPipelineAsset.Create(rendererData);
+                ConfigureRenderPipelineAsset(renderPipelineAsset);
+                AssetDatabase.CreateAsset(renderPipelineAsset, renderPipelineAssetPath);
             }
+            else
+            {
+                ConfigureRenderPipelineAsset(renderPipelineAsset);
+            }
+
+            // Set the Immersal URP asset as the project default.
+            // Clear the current quality-level override so the default asset is actually used.
+            GraphicsSettings.defaultRenderPipeline = renderPipelineAsset;
+            QualitySettings.renderPipeline = null;
+
+            EditorUtility.SetDirty(rendererData);
+            EditorUtility.SetDirty(renderPipelineAsset);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
         }
 
         private static void ConfigureRenderPipelineAsset(UniversalRenderPipelineAsset asset)

@@ -327,8 +327,7 @@ namespace Immersal.Samples.Mapping
             using IImageData imageData = cameraData.GetImageData();
 
             Vector3 pos = cameraData.CameraPositionOnCapture;
-            Quaternion r = cameraData.CameraRotationOnCapture;
-            r.AdjustForScreenOrientation();
+            Quaternion r = cameraData.CameraRotationOnCapture * cameraData.ScreenOrientation;
             r.SwitchHandedness();
             pos.SwitchHandedness();
             Vector4 intrinsics = cameraData.Intrinsics;

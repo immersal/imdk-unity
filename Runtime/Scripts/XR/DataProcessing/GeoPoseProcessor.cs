@@ -101,7 +101,7 @@ namespace Immersal.XR
                 
                 Vector3 pos = data.LocalizationResult.LocalizeInfo.position;
                 Quaternion rot = data.LocalizationResult.LocalizeInfo.rotation;
-                rot.AdjustForScreenOrientation();
+                rot *= data.PlatformResult.CameraData.ScreenOrientation;
                 rot.SwitchHandedness();
                 pos.SwitchHandedness();
                 
@@ -111,7 +111,7 @@ namespace Immersal.XR
                 Vector3 scaledPos = Vector3.Scale(pos, mo.Scale);
                 Matrix4x4 cloudSpace = offsetNoScale * Matrix4x4.TRS(scaledPos, rot, Vector3.one);
                 Matrix4x4 trackerSpace = Matrix4x4.TRS(capturePos, captureRot, Vector3.one);
-                m_LatestTrackerSpacePose = trackerSpace * (cloudSpace.inverse);
+                m_LatestTrackerSpacePose = trackerSpace * cloudSpace.inverse;
                 
                 // Cache ecef as well
                 m_LatestMapEcef = data.Entry.Map.MapToEcefGet();

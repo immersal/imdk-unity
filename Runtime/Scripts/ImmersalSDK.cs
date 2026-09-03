@@ -29,7 +29,7 @@ namespace Immersal
 	{
 		// SDK properties
 		
-		public static string sdkVersion = "2.3.0";
+		public static string sdkVersion = "2.4.0";
 		private static readonly string[] ServerList = new[] {"https://api.immersal.com", "https://immersal.hexagon.com.cn"};
 		public enum APIServer { DefaultServer = 0, ChinaServer = 1, CustomServer = 2 };
 		
@@ -182,7 +182,7 @@ namespace Immersal
 #if UNITY_EDITOR
 		        if (instance == null && !Application.isPlaying)
 		        {
-			        instance = FindObjectOfType<ImmersalSDK>();
+			        instance = FindFirstObjectByType<ImmersalSDK>();
 		        }
 #endif
 		        if (instance == null)
@@ -308,7 +308,7 @@ namespace Immersal
         
         private async Task<bool> RegisterAndLoadMaps()
         {
-	        XRMap[] maps = FindObjectsOfType<XRMap>();
+	        XRMap[] maps = FindObjectsByType<XRMap>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
 	        ImmersalLogger.Log($"Found {maps.Length} maps in scene.");
 	        List<Task> mapRegisterTasks = new List<Task>();
 

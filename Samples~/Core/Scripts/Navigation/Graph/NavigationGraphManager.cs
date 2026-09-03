@@ -95,7 +95,7 @@ namespace Immersal.Samples.Navigation
 #if UNITY_EDITOR
                 if (instance == null && !Application.isPlaying)
                 {
-                    instance = FindObjectOfType<NavigationGraphManager>();
+                    instance = FindFirstObjectByType<NavigationGraphManager>();
                 }
 #endif
                 if (instance == null)
@@ -124,7 +124,7 @@ namespace Immersal.Samples.Navigation
         {
             InitializeMeshRenderer();
 
-            m_XRSpace = FindObjectOfType<Immersal.XR.XRSpace>();
+            m_XRSpace = FindFirstObjectByType<Immersal.XR.XRSpace>();
         }
 
         void Update()

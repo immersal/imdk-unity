@@ -36,13 +36,16 @@ namespace Immersal.XR
         private IPlatformConfiguration m_Configuration;
         private bool m_ConfigDone = false;
 
+        private bool m_OverrideScreenOrientation = false;
+        private ScreenOrientation m_ScreenOrientationOverride = ScreenOrientation.Portrait;
+
         public ARCameraManager cameraManager
         {
             get
             {
                 if (m_CameraManager == null)
                 {
-                    m_CameraManager = UnityEngine.Object.FindObjectOfType<ARCameraManager>();
+                    m_CameraManager = UnityEngine.Object.FindFirstObjectByType<ARCameraManager>();
                 }
                 return m_CameraManager;
             }
@@ -54,7 +57,7 @@ namespace Immersal.XR
             {
                 if (m_ARSession == null)
                 {
-                    m_ARSession = UnityEngine.Object.FindObjectOfType<ARSession>();
+                    m_ARSession = UnityEngine.Object.FindFirstObjectByType<ARSession>();
                 }
                 return m_ARSession;
             }
@@ -93,8 +96,8 @@ namespace Immersal.XR
             }
         }
 
-        private Task<(bool, CameraData)> m_CurrentCameraDataTask;
-        private bool m_isTracking = false;
+        private bool m_IsTracking = false;
+        private bool m_FrameReceived = false;
 
         public async Task<IPlatformConfigureResult> ConfigurePlatform()
         {
@@ -112,22 +115,22 @@ namespace Immersal.XR
 #if UNITY_EDITOR
             ImmersalLogger.LogWarning("Running AR Foundation Platform in Unity Editor will result in failed updates.");
 #endif
-            m_CameraManager = UnityEngine.Object.FindObjectOfType<ARCameraManager>();
-
-            if (!m_CameraManager)
+            if (!cameraManager)
             {
                 throw new ComponentTaskCriticalException("Could not find ARCameraManager.");
             }
             
-            m_ARSession = UnityEngine.Object.FindObjectOfType<ARSession>();
-            if (!m_ARSession)
+            if (!arSession)
             {
                 throw new ComponentTaskCriticalException("Could not find ARSession.");
             }
 
+            m_FrameReceived = false;
+            cameraManager.frameReceived -= OnCameraFrameReceived;
+            cameraManager.frameReceived += OnCameraFrameReceived;
+
             m_Configuration = configuration;
-            
-            if (Camera.main != null) m_CameraTransform = Camera.main.transform;
+            m_CameraTransform = m_CameraManager.transform;
 
             for (int i = 0; i < m_MaxConfigurationAttempts; i++)
             {
@@ -153,13 +156,15 @@ namespace Immersal.XR
 			var cameraSubsystem = cameraManager.subsystem;
 			if (cameraSubsystem == null || !cameraSubsystem.running)
 				return false;
-			var configurations = cameraSubsystem.GetConfigurations(Allocator.Temp);
-			if (!configurations.IsCreated || (configurations.Length <= 0))
+			using var configurations = cameraSubsystem.GetConfigurations(Allocator.Temp);
+			if (!configurations.IsCreated || configurations.Length == 0)
 				return false;
 			int bestError = int.MaxValue;
 			var currentConfig = cameraSubsystem.currentConfiguration;
-			int dw = (int)currentConfig?.width;
-			int dh = (int)currentConfig?.height;
+            if (!currentConfig.HasValue)
+                return false;
+			int dw = (int)currentConfig.Value.width;
+			int dh = (int)currentConfig.Value.height;
 			if (dw == 0 && dh == 0)
 				return false;
 #if UNITY_ANDROID
@@ -215,31 +220,30 @@ namespace Immersal.XR
             return true;
         }
         
-        public async Task<IPlatformUpdateResult> UpdatePlatform()
+        public Task<IPlatformUpdateResult> UpdatePlatform()
         {
-            return await UpdateWithConfiguration(m_Configuration);
+            return UpdateWithConfiguration(m_Configuration);
         }
         
-        public async Task<IPlatformUpdateResult> UpdatePlatform(IPlatformConfiguration oneShotConfiguration)
+        public Task<IPlatformUpdateResult> UpdatePlatform(IPlatformConfiguration oneShotConfiguration)
         {
-            return await UpdateWithConfiguration(oneShotConfiguration);
+            return UpdateWithConfiguration(oneShotConfiguration);
         }
         
-        private async Task<IPlatformUpdateResult> UpdateWithConfiguration(IPlatformConfiguration configuration)
+        private Task<IPlatformUpdateResult> UpdateWithConfiguration(IPlatformConfiguration configuration)
         {
-            ImmersalLogger.Log("Updating ARF Platform");
+            ImmersalLogger.Log("Updating AR Foundation Platform");
             
             if (!m_ConfigDone)
                 throw new ComponentTaskCriticalException("Trying to update platform before configuration.");
             
+            (bool success, CameraData data) = GetCameraData(configuration.CameraDataFormat);
+
             // Status
             SimplePlatformStatus platformStatus = new SimplePlatformStatus
             {
-                TrackingQuality = m_isTracking ? 1 : 0
+                TrackingQuality = m_IsTracking && success ? 1 : 0
             };
-
-            m_CurrentCameraDataTask = GetCameraData(configuration.CameraDataFormat);
-            (bool success, CameraData data) = await m_CurrentCameraDataTask;
 
             // UpdateResult
             SimplePlatformUpdateResult r = new SimplePlatformUpdateResult
@@ -248,39 +252,33 @@ namespace Immersal.XR
                 Status = platformStatus,
                 CameraData = (ICameraData)data
             };
-       
-            return r;
+
+            return Task.FromResult<IPlatformUpdateResult>(r);
         }
 
-        private async Task<(bool, CameraData)> GetCameraData(CameraDataFormat cameraDataFormat)
+        private (bool, CameraData) GetCameraData(CameraDataFormat cameraDataFormat)
         {
-            if (!GetIntrinsics(out Vector4 intrinsics))
-            {
-                ImmersalLogger.LogError("Could not acquire camera intrinsics.");
+            if (!m_FrameReceived)
                 return (false, null);
-            }
 
-            if (m_CameraTransform == null)
-            {
-                ImmersalLogger.LogError("Could not acquire camera pose.");
-                return (false, null);
-            }
-            
-            bool imageAcquired = false;
-            Task<XRCpuImage> t = Task.Run(() =>
-            {
-                // XRCpuImage lifecycle will be managed by CameraData/ImageData
-                imageAcquired = m_CameraManager.TryAcquireLatestCpuImage(out XRCpuImage image);
-                return image;
-            });
-            XRCpuImage image = await t;
-            
-            if (!imageAcquired)
+            if (!m_CameraManager.TryAcquireLatestCpuImage(out XRCpuImage image))
             {
                 ImmersalLogger.LogError("Could not acquire camera image.");
                 return (false, null);
             }
-            
+
+            if (!GetIntrinsics(out Vector4 intrinsics))
+            {
+                image.Dispose();
+                ImmersalLogger.LogError("Could not acquire camera intrinsics.");
+                return (false, null);
+            }
+
+            Vector3 position = m_CameraTransform.position;
+            Quaternion rotation = m_CameraTransform.rotation;
+            Quaternion orientation = GetScreenOrientation();
+            uint imageOrientation = GetImageOrientation();
+
             ARFImageData imageData = new ARFImageData(image, cameraDataFormat);
             CameraData data = new CameraData(imageData)
             {
@@ -289,9 +287,10 @@ namespace Immersal.XR
                 Intrinsics = intrinsics,
                 Format = cameraDataFormat,
                 Channels = cameraDataFormat == CameraDataFormat.SingleChannel ? 1 : 3,
-                CameraPositionOnCapture = m_CameraTransform.position,
-                CameraRotationOnCapture = m_CameraTransform.rotation,
-                ImageOrientation = GetImageOrientation()
+                CameraPositionOnCapture = position,
+                CameraRotationOnCapture = rotation,
+                ScreenOrientation = orientation,
+                ImageOrientation = imageOrientation
             };
 
             return (true, data);
@@ -307,8 +306,33 @@ namespace Immersal.XR
                 DeviceOrientation.PortraitUpsideDown => 270,
                 _ => 0
             };
-
             return angle;
+        }
+
+        public Quaternion GetScreenOrientation()
+        {
+            ScreenOrientation orientation =
+                m_OverrideScreenOrientation ? m_ScreenOrientationOverride : Screen.orientation;
+            float angle = orientation switch
+            {
+                ScreenOrientation.Portrait => 90f,
+                ScreenOrientation.LandscapeLeft => 180f,
+                ScreenOrientation.LandscapeRight => 0f,
+                ScreenOrientation.PortraitUpsideDown => -90f,
+                _ => 0f
+            };
+            return Quaternion.Euler(0f, 0f, angle);
+        }
+
+        public void SetOrientationOverride(ScreenOrientation newOrientation)
+        {
+            m_OverrideScreenOrientation = true;
+            m_ScreenOrientationOverride = newOrientation;
+        }
+
+        public void DisableOrientationOverride()
+        {
+            m_OverrideScreenOrientation = false;
         }
 
         public bool GetIntrinsics(out Vector4 intrinsics)
@@ -332,7 +356,7 @@ namespace Immersal.XR
         private void OnEnable()
         {
 #if !UNITY_EDITOR
-			m_isTracking = ARSession.state == ARSessionState.SessionTracking;
+			m_IsTracking = ARSession.state == ARSessionState.SessionTracking;
 			ARSession.stateChanged += ARSessionStateChanged;
 #endif
         }
@@ -342,20 +366,26 @@ namespace Immersal.XR
 #if !UNITY_EDITOR
 			ARSession.stateChanged -= ARSessionStateChanged;
 #endif
-            m_isTracking = false;
+            m_IsTracking = false;
         }
 
         private void ARSessionStateChanged(ARSessionStateChangedEventArgs args)
         {
-            m_isTracking = args.state == ARSessionState.SessionTracking;
+            m_IsTracking = args.state == ARSessionState.SessionTracking;
+        }
+
+        private void OnCameraFrameReceived(ARCameraFrameEventArgs args)
+        {
+            m_FrameReceived = true;
         }
         
-        public async Task StopAndCleanUp()
+        public Task StopAndCleanUp()
         {
-	         // there is no cancellation token for the update procedure here, just wait
-             await m_CurrentCameraDataTask;
-             m_ConfigDone = false;
-             m_isTracking = false;
+            m_ConfigDone = false;
+            m_IsTracking = false;
+            cameraManager.frameReceived -= OnCameraFrameReceived;
+            m_FrameReceived = false;
+            return Task.CompletedTask;
         }
     }
     
@@ -421,20 +451,15 @@ namespace Immersal.XR
             }
             else
             {
-                byte[] data = new byte[width * height];
+                m_ManagedBytes = new byte[width * height];
+                m_ManagedDataHandle = GCHandle.Alloc(m_ManagedBytes, GCHandleType.Pinned);
+                m_UnmanagedDataPointer = m_ManagedDataHandle.AddrOfPinnedObject();
 
                 unsafe
                 {
-                    fixed (byte* dstPtr = data)
-                    {
-                        byte* srcPtr = (byte*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
-                        if (width > 0 && height > 0)
-                        {
-                            UnsafeUtility.MemCpyStride(dstPtr, width, srcPtr, plane.rowStride, width, height);
-                        }
-
-                        m_UnmanagedDataPointer = (IntPtr)dstPtr;
-                    }
+                    byte* dstPtr = (byte*)m_UnmanagedDataPointer;
+                    byte* srcPtr = (byte*)NativeArrayUnsafeUtility.GetUnsafeBufferPointerWithoutChecks(plane.data);
+                    UnsafeUtility.MemCpyStride(dstPtr, width, srcPtr, plane.rowStride, width, height);
                 }
             }
         }
@@ -462,7 +487,6 @@ namespace Immersal.XR
             int size = Image.width * Image.height * pixelSize;
             byte[] bytes = new byte[size];
             Marshal.Copy(m_UnmanagedDataPointer, bytes, 0, size);
-            m_ManagedDataHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
             return bytes;
         }
     }

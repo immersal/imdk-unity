@@ -245,8 +245,7 @@ namespace Immersal
         {
             int channels = cameraData.Channels == 0 ? 1 : cameraData.Channels; // default to 1
             Vector4 intrinsics = cameraData.Intrinsics;
-            Quaternion r = cameraData.CameraRotationOnCapture;
-            r.AdjustForScreenOrientation();
+            Quaternion r = cameraData.CameraRotationOnCapture * cameraData.ScreenOrientation;
             r.SwitchHandedness();
             return LocalizeImage(cameraData.Width, cameraData.Height, ref intrinsics, pixelBuffer, channels, solverType, ref r);
         }
@@ -570,7 +569,7 @@ namespace Immersal
         public static extern int icvRotMapToEcef(out Quaternion ecef, ref Quaternion map, IntPtr mapToEcef);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
-        public static extern int icvRotEnuToEcef(IntPtr quatEcef, IntPtr quatEnu, double latDeg, double lonDeg, bool oscp);
+        public static extern int icvRotEnuToEcef(IntPtr quatEcef, IntPtr quatEnu, double latDeg, double lonDeg, [MarshalAs(UnmanagedType.I1)] bool oscp);
 
         [DllImport(Assembly, CallingConvention = CallingConvention.Cdecl)]
         public static extern int icvRotEcefToMap(out Quaternion map, ref Quaternion ecef, IntPtr mapToEcef);

@@ -44,7 +44,7 @@ namespace Immersal.Samples.ContentPlacement
 #if UNITY_EDITOR
                 if (instance == null && !Application.isPlaying)
                 {
-                    instance = UnityEngine.Object.FindObjectOfType<ContentStorageManager>();
+                    instance = UnityEngine.Object.FindFirstObjectByType<ContentStorageManager>();
                 }
 #endif
                 if (instance == null)
@@ -72,7 +72,7 @@ namespace Immersal.Samples.ContentPlacement
 
             if (m_XRSpace == null)
             {
-                m_XRSpace = GameObject.FindObjectOfType<Immersal.XR.XRSpace>();
+                m_XRSpace = GameObject.FindFirstObjectByType<Immersal.XR.XRSpace>();
             }
         }
 

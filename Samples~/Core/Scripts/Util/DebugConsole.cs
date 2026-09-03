@@ -36,7 +36,7 @@ namespace Immersal.Samples.Util
 #if UNITY_EDITOR
                 if (m_instance == null && !Application.isPlaying)
                 {
-                    m_instance = FindObjectOfType<DebugConsole>();
+                    m_instance = FindFirstObjectByType<DebugConsole>();
                 }
 #endif
                 if (m_instance == null)

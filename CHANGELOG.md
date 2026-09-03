@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.4.0] - 2026-08-31
+
+### Added
+- Support for Unity 6 (tested with 6.3 LTS)
+- Plugins: support for loading new map file format
+
+### Fixed
+- Orientation changes in 2.3.0 caused some crashes that have been fixed
+- Improved `ARFoundationSupport` robustness
+
+### Changed
+- `ICameraData.Orientation` renamed to `ScreenOrientation`
+
 ## [2.3.0] - 2026-02-12
 
 ### Added

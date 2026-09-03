@@ -31,6 +31,7 @@ namespace Immersal.XR
         Vector3 CameraPositionOnCapture { get; }
         Quaternion CameraRotationOnCapture { get; }
         double[] Distortion { get; }
+        Quaternion ScreenOrientation { get;}
         uint ImageOrientation { get; } 
     }
     
@@ -44,6 +45,7 @@ namespace Immersal.XR
         public Vector3 CameraPositionOnCapture { get; set; }
         public Quaternion CameraRotationOnCapture { get; set; }
         public double[] Distortion { get; set; } // not yet used
+        public Quaternion ScreenOrientation { get; set; }
         public uint ImageOrientation { get; set; }
         
         private readonly IImageData m_ImageData;

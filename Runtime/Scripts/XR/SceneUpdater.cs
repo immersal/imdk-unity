@@ -40,7 +40,7 @@ namespace Immersal.XR
 		    Quaternion localizedRot = locInfo.rotation;
 		    
 		    // Apply device specific orientation and switch handedness to align with Unity
-			localizedRot.AdjustForScreenOrientation();
+		    localizedRot *= cameraData.ScreenOrientation;
 		    localizedRot.SwitchHandedness();
 		    localizedPos.SwitchHandedness();
 		
@@ -56,7 +56,7 @@ namespace Immersal.XR
 		    Matrix4x4 trackerSpace = Matrix4x4.TRS(capturePos, captureRot, Vector3.one);
 		    
 		    // Tracker relative pose
-		    Matrix4x4 m = trackerSpace * (mapSpace.inverse);
+		    Matrix4x4 m = trackerSpace * mapSpace.inverse;
 
 		    SceneUpdateData data = new SceneUpdateData
 		    {

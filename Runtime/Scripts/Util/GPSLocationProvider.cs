@@ -52,7 +52,7 @@ namespace Immersal
 #if UNITY_EDITOR
                 if (instance == null && !Application.isPlaying)
                 {
-                    instance = UnityEngine.Object.FindObjectOfType<GPSLocationProvider>();
+                    instance = UnityEngine.Object.FindFirstObjectByType<GPSLocationProvider>();
                 }
 #endif
                 if (instance == null)

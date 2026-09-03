@@ -132,7 +132,7 @@ namespace Immersal.XR
 		{
 			Vector3 pos = data.LocalizeInfo.position;
 			Quaternion rot = data.LocalizeInfo.rotation;
-			rot.AdjustForScreenOrientation();
+			rot *= data.CameraData.ScreenOrientation;
 			rot.SwitchHandedness();
 			pos.SwitchHandedness();
 			Matrix4x4 imSpacePose = Matrix4x4.TRS(pos, rot, Vector3.one);
