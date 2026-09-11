@@ -490,6 +490,21 @@ namespace Immersal
                 Error = true,
                 RequiresManualFix = true
             },
+#if IMMERSAL_XREAL_ENABLED
+            // XREAL loader
+            new ImmersalProjectIssue()
+            {
+                Message = () => "XREAL XR-Plugin Provider must be enabled.",
+                Check = () => ImmersalProjectValidation.ActiveBuildTarget != BuildTarget.Android || IsPluginLoaderEnabled("XREALXRLoader"),
+                Fix = () =>
+                {
+                    EditorUserBuildSettings.selectedBuildTargetGroup = ImmersalProjectValidation.ActiveBuildTargetGroup;
+                    SettingsService.OpenProjectSettings("Project/XR Plug-in Management");
+                },
+                Error = true,
+                RequiresManualFix = true
+            },
+#else
             // ARCore loader
             new ImmersalProjectIssue()
             {
@@ -503,6 +518,7 @@ namespace Immersal
                 Error = true,
                 RequiresManualFix = true
             },
+#endif
             new ImmersalProjectIssue()
             {
                 Message = () => "Universal Render Pipeline is recommended",
