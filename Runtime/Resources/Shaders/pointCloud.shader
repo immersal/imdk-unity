@@ -17,6 +17,7 @@
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma target 3.0
+			#pragma multi_compile_fog
 
 			#include "UnityCG.cginc"
 
@@ -34,7 +35,7 @@
 				float psize : PSIZE;
 				float4 center : TEXCOORD0;
 				half size : TEXCOORD1;
-				UNITY_FOG_COORDS(0)
+				UNITY_FOG_COORDS(2)
 			};
 
 			VertexOut vert(Vertex vertex, out float4 outpos : SV_POSITION)
@@ -46,7 +47,7 @@
 				o.size = o.psize;
 
 				o.center = ComputeScreenPos(outpos);
-				UNITY_TRANSFER_FOG(o, o.position);
+				UNITY_TRANSFER_FOG(o, outpos);
 				return o;
 			}
             
@@ -58,11 +59,12 @@
 				center.xy *= _ScreenParams.xy;
 				float d = distance(vpos.xy, center.xy);
 
-				if (d > i.size * 0.5) {
-                    discard;
-				}
+				#if !defined(SHADER_API_D3D11)
+					if (d > i.size * 0.5)
+						discard;
+				#endif
 
-				UNITY_APPLY_FOG(input.fogCoord, c);
+				UNITY_APPLY_FOG(i.fogCoord, c);
 				return c;
 			}
 			ENDCG

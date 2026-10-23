@@ -1,5 +1,5 @@
 /*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -37,8 +37,8 @@ namespace Immersal.XR
         [SerializeField]
         private int m_PriorNNCountMax = 720;
 
-	    [SerializeField]
-	    private Vector3 m_PriorScale = Vector3.one;
+        [SerializeField]
+        private Vector3 m_PriorScale = Vector3.one;
         
         [SerializeField]
         private float m_PriorRadius = 6.0f;
@@ -76,7 +76,7 @@ namespace Immersal.XR
                     mapList.Add(new SDKMapId {id = map.mapId});
                 }
             }
-	        
+            
             // Remove maps
             if (configuration.MapsToRemove != null)
             {
@@ -84,7 +84,7 @@ namespace Immersal.XR
                 {
                     mapList.Remove(new SDKMapId {id = map.mapId});
                 }
-		        
+                
                 // Check if there are no configured maps left
                 if (mapList.Count == 0)
                 {
@@ -92,7 +92,7 @@ namespace Immersal.XR
                     return Task.FromResult(false);
                 }
             }
-	        
+            
             m_MapIds = mapList.ToArray();
             return Task.FromResult(true);
         }
@@ -131,7 +131,7 @@ namespace Immersal.XR
                 r.MapId = locInfo.mapId;
                 r.LocalizeInfo = locInfo;
                 m_previouslyLocalizedMapId = locInfo.mapId;
-			        
+                    
                 ImmersalLogger.Log($"Relocalized in {elapsedTime} seconds");
             }
             else

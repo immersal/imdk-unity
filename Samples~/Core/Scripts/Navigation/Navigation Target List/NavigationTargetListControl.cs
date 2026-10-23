@@ -1,5 +1,5 @@
-﻿/*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+/*===============================================================================
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -16,8 +16,8 @@ using UnityEngine.UI;
 namespace Immersal.Samples.Navigation
 {
     [RequireComponent(typeof(RectTransform))]
-	[RequireComponent(typeof(ScrollRect))]
-	public class NavigationTargetListControl : MonoBehaviour
+    [RequireComponent(typeof(ScrollRect))]
+    public class NavigationTargetListControl : MonoBehaviour
     {
         [SerializeField]
         private GameObject m_ButtonTemplate = null;
@@ -77,7 +77,7 @@ namespace Immersal.Samples.Navigation
 
         private void ScrollToTop()
         {
-			transform.GetComponent<ScrollRect>().normalizedPosition = new Vector2(0, 1);
+            transform.GetComponent<ScrollRect>().normalizedPosition = new Vector2(0, 1);
         }
     }
 }

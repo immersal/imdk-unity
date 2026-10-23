@@ -1,5 +1,5 @@
 /*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -153,69 +153,69 @@ namespace Immersal.XR
         private bool ConfigureCamera()
         {
 #if !UNITY_EDITOR && (UNITY_ANDROID || UNITY_IOS)
-			var cameraSubsystem = cameraManager.subsystem;
-			if (cameraSubsystem == null || !cameraSubsystem.running)
-				return false;
-			using var configurations = cameraSubsystem.GetConfigurations(Allocator.Temp);
-			if (!configurations.IsCreated || configurations.Length == 0)
-				return false;
-			int bestError = int.MaxValue;
-			var currentConfig = cameraSubsystem.currentConfiguration;
+            var cameraSubsystem = cameraManager.subsystem;
+            if (cameraSubsystem == null || !cameraSubsystem.running)
+                return false;
+            using var configurations = cameraSubsystem.GetConfigurations(Allocator.Temp);
+            if (!configurations.IsCreated || configurations.Length == 0)
+                return false;
+            int bestError = int.MaxValue;
+            var currentConfig = cameraSubsystem.currentConfiguration;
             if (!currentConfig.HasValue)
                 return false;
-			int dw = (int)currentConfig.Value.width;
-			int dh = (int)currentConfig.Value.height;
-			if (dw == 0 && dh == 0)
-				return false;
+            int dw = (int)currentConfig.Value.width;
+            int dh = (int)currentConfig.Value.height;
+            if (dw == 0 && dh == 0)
+                return false;
 #if UNITY_ANDROID
-			CameraResolution reso = androidResolution;
+            CameraResolution reso = androidResolution;
 #else
-			CameraResolution reso = iOSResolution;
+            CameraResolution reso = iOSResolution;
 #endif
 
-			if (!m_ConfigDone)
-			{
-				m_InitialConfig = currentConfig;
-			}
+            if (!m_ConfigDone)
+            {
+                m_InitialConfig = currentConfig;
+            }
 
-			switch (reso)
-			{
-				case CameraResolution.Default:
-					dw = (int)currentConfig?.width;
-					dh = (int)currentConfig?.height;
-					break;
-				case CameraResolution.HD:
-					dw = 1280;
-					dh = 720;
-					break;
-				case CameraResolution.FullHD:
-					dw = 1920;
-					dh = 1080;
-					break;
-				case CameraResolution.Max:
-					dw = 80000;
-					dh = 80000;
-					break;
-			}
+            switch (reso)
+            {
+                case CameraResolution.Default:
+                    dw = (int)currentConfig?.width;
+                    dh = (int)currentConfig?.height;
+                    break;
+                case CameraResolution.HD:
+                    dw = 1280;
+                    dh = 720;
+                    break;
+                case CameraResolution.FullHD:
+                    dw = 1920;
+                    dh = 1080;
+                    break;
+                case CameraResolution.Max:
+                    dw = 80000;
+                    dh = 80000;
+                    break;
+            }
 
-			foreach (var config in configurations)
-			{
-				int perror = config.width * config.height - dw * dh;
-				if (Math.Abs(perror) < bestError)
-				{
-					bestError = Math.Abs(perror);
-					currentConfig = config;
-				}
-			}
+            foreach (var config in configurations)
+            {
+                int perror = config.width * config.height - dw * dh;
+                if (Math.Abs(perror) < bestError)
+                {
+                    bestError = Math.Abs(perror);
+                    currentConfig = config;
+                }
+            }
 
-			if (reso != CameraResolution.Default) {
-				ImmersalLogger.Log($"resolution = {(int)currentConfig?.width}x{(int)currentConfig?.height}");
-				cameraSubsystem.currentConfiguration = currentConfig;
-			}
-			else
-			{
-				cameraSubsystem.currentConfiguration = m_InitialConfig;
-			}
+            if (reso != CameraResolution.Default) {
+                ImmersalLogger.Log($"resolution = {(int)currentConfig?.width}x{(int)currentConfig?.height}");
+                cameraSubsystem.currentConfiguration = currentConfig;
+            }
+            else
+            {
+                cameraSubsystem.currentConfiguration = m_InitialConfig;
+            }
 #endif
             return true;
         }
@@ -237,15 +237,13 @@ namespace Immersal.XR
             if (!m_ConfigDone)
                 throw new ComponentTaskCriticalException("Trying to update platform before configuration.");
             
-            (bool success, CameraData data) = GetCameraData(configuration.CameraDataFormat);
-
-            // Status
             SimplePlatformStatus platformStatus = new SimplePlatformStatus
             {
-                TrackingQuality = m_IsTracking && success ? 1 : 0
+                TrackingQuality = m_IsTracking ? 1 : 0
             };
 
-            // UpdateResult
+            (bool success, CameraData data) = GetCameraData(configuration.CameraDataFormat);
+
             SimplePlatformUpdateResult r = new SimplePlatformUpdateResult
             {
                 Success = success,
@@ -356,15 +354,15 @@ namespace Immersal.XR
         private void OnEnable()
         {
 #if !UNITY_EDITOR
-			m_IsTracking = ARSession.state == ARSessionState.SessionTracking;
-			ARSession.stateChanged += ARSessionStateChanged;
+            m_IsTracking = ARSession.state == ARSessionState.SessionTracking;
+            ARSession.stateChanged += ARSessionStateChanged;
 #endif
         }
         
         private void OnDisable()
         {
 #if !UNITY_EDITOR
-			ARSession.stateChanged -= ARSessionStateChanged;
+            ARSession.stateChanged -= ARSessionStateChanged;
 #endif
             m_IsTracking = false;
         }

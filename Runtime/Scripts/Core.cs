@@ -1,5 +1,5 @@
 /*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -56,9 +56,16 @@ namespace Immersal
         public static int MapPointsGet(Vector3[] points)
         {
             GCHandle pointsHandle = GCHandle.Alloc(points, GCHandleType.Pinned);
-            int n = Native.icvMapPointsGet(pointsHandle.AddrOfPinnedObject(), points.Length);
-            pointsHandle.Free();
-            return n;
+
+            try
+            {
+                int n = Native.icvMapPointsGet(pointsHandle.AddrOfPinnedObject(), points.Length);
+                return n;
+            }
+            finally
+            {
+                pointsHandle.Free();
+            }
         }
 
         public static int MapResourcesFree() => Native.icvMapResourcesFree();
@@ -76,9 +83,16 @@ namespace Immersal
             if (MapHandleMapping.TryGetHandle(mapId, out int handle))
             {
                 GCHandle vector3ArrayHandle = GCHandle.Alloc(points, GCHandleType.Pinned);
-                int n = Native.icvPointsGet(handle, vector3ArrayHandle.AddrOfPinnedObject(), points.Length);
-                vector3ArrayHandle.Free();
-                return n;
+
+                try
+                {
+                    int n = Native.icvPointsGet(handle, vector3ArrayHandle.AddrOfPinnedObject(), points.Length);
+                    return n;
+                }
+                finally
+                {
+                    vector3ArrayHandle.Free();
+                }
             }
 
             return -1;
@@ -115,6 +129,13 @@ namespace Immersal
             }
 
             int mapHandle = Native.icvLoadMap(buffer);
+
+            if (mapHandle < 0)
+            {
+                ImmersalLogger.Log($"Failed to load map {mapId}");
+                return mapHandle;
+            }
+
             MapHandleMapping.AddMapping(mapId, mapHandle);
             ImmersalLogger.Log($"Loaded map {mapId}({mapHandle}) into plugin");
             return mapHandle;
@@ -127,14 +148,15 @@ namespace Immersal
         /// <returns>Returns 1 if succeeded, 0 otherwise.</returns>
         public static int FreeMap(int mapId)
         {
-            if (MapHandleMapping.TryGetHandle(mapId, out int mapHandle))
-            {
-                ImmersalLogger.Log($"Freeing map {mapId}({mapHandle}) from plugin");
-                MapHandleMapping.RemoveMappingByMapId(mapId);
-                return Native.icvFreeMap(mapHandle);
-            }
+            if (!MapHandleMapping.TryGetHandle(mapId, out int mapHandle))
+                return 0;
 
-            return 0;
+            int result = Native.icvFreeMap(mapHandle);
+
+            if (result == 1)
+                MapHandleMapping.RemoveMappingByMapId(mapId);
+
+            return result;
         }
         
         /// <summary>
@@ -150,14 +172,26 @@ namespace Immersal
         public static CaptureInfo CaptureImage(byte[] capture, int captureSizeMax, byte[] pixels, int width,
             int height, int channels, int useMatching = 0)
         {
-            GCHandle captureHandle = GCHandle.Alloc(capture, GCHandleType.Pinned);
-            GCHandle pixelsHandle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
-            CaptureInfo info = Native.icvCaptureImage(captureHandle.AddrOfPinnedObject(), captureSizeMax,
-                pixelsHandle.AddrOfPinnedObject(), width, height, channels, useMatching);
-            captureHandle.Free();
-            pixelsHandle.Free();
+            GCHandle captureHandle = default;
+            GCHandle pixelsHandle = default;
 
-            return info;
+            try
+            {
+                captureHandle = GCHandle.Alloc(capture, GCHandleType.Pinned);
+                pixelsHandle = GCHandle.Alloc(pixels, GCHandleType.Pinned);
+
+                CaptureInfo info = Native.icvCaptureImage(captureHandle.AddrOfPinnedObject(), captureSizeMax,
+                    pixelsHandle.AddrOfPinnedObject(), width, height, channels, useMatching);
+                return info;
+            }
+            finally
+            {
+                if (pixelsHandle.IsAllocated)
+                    pixelsHandle.Free();
+
+                if (captureHandle.IsAllocated)
+                    captureHandle.Free();
+            }
         }
 
         /// <summary>
@@ -179,15 +213,23 @@ namespace Immersal
             if (MapHandleMapping.IdsToHandles(mapIds, out int[] handles))
             {
                 GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
-                LocalizeInfo result = Native.icvLocalize(n, intHandle.AddrOfPinnedObject(), width, height,
-                    ref intrinsics, pixels, channels, solverType, ref cameraRotation);
-                if (intHandle.IsAllocated) intHandle.Free();
-                
-                // result.mapId is a handle at this point -> convert
-                if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
+
+                try
                 {
-                    result.mapId = mapId;
-                    return result;
+                    LocalizeInfo result = Native.icvLocalize(n, intHandle.AddrOfPinnedObject(), width, height,
+                        ref intrinsics, pixels, channels, solverType, ref cameraRotation);
+                    
+                    // result.mapId is a handle at this point -> convert
+                    if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
+                    {
+                        result.mapId = mapId;
+                        return result;
+                    }
+                }
+                finally
+                {
+                    if (intHandle.IsAllocated)
+                        intHandle.Free();
                 }
             }
 
@@ -259,15 +301,23 @@ namespace Immersal
             if (MapHandleMapping.IdsToHandles(mapIds, out int[] handles))
             {
                 GCHandle intHandle = GCHandle.Alloc(handles, GCHandleType.Pinned);
-                LocalizeInfo result = Native.icvLocalizePrior(n, intHandle.AddrOfPinnedObject(), cameraData.Width, cameraData.Height,
-                    ref intrinsics, pixelBuffer, channels, ref priorPos, ref priorScale, priorNNCountMin, priorNNCountMax, priorRadius, filterRadius);
-                if (intHandle.IsAllocated) intHandle.Free();
-                
-                // result.mapId is a handle at this point -> convert
-                if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
+
+                try
                 {
-                    result.mapId = mapId;
-                    return result;
+                    LocalizeInfo result = Native.icvLocalizePrior(n, intHandle.AddrOfPinnedObject(), cameraData.Width, cameraData.Height,
+                        ref intrinsics, pixelBuffer, channels, ref priorPos, ref priorScale, priorNNCountMin, priorNNCountMax, priorRadius, filterRadius);
+                    
+                    // result.mapId is a handle at this point -> convert
+                    if (MapHandleMapping.TryGetMapId(result.mapId, out int mapId))
+                    {
+                        result.mapId = mapId;
+                        return result;
+                    }
+                }
+                finally
+                {
+                    if (intHandle.IsAllocated)
+                        intHandle.Free();
                 }
             }
 
@@ -288,11 +338,18 @@ namespace Immersal
         {
             GCHandle ecefHandle = GCHandle.Alloc(ecef, GCHandleType.Pinned);
             GCHandle mapToEcefHandle = GCHandle.Alloc(mapToEcef, GCHandleType.Pinned);
-            int r = Native.icvPosMapToEcef(ecefHandle.AddrOfPinnedObject(), ref map,
-                mapToEcefHandle.AddrOfPinnedObject());
-            mapToEcefHandle.Free();
-            ecefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvPosMapToEcef(ecefHandle.AddrOfPinnedObject(), ref map,
+                    mapToEcefHandle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                mapToEcefHandle.Free();
+                ecefHandle.Free();
+            }
         }
 
         /// <summary>
@@ -305,10 +362,17 @@ namespace Immersal
         {
             GCHandle wgs84Handle = GCHandle.Alloc(wgs84, GCHandleType.Pinned);
             GCHandle ecefHandle = GCHandle.Alloc(ecef, GCHandleType.Pinned);
-            int r = Native.icvPosEcefToWgs84(wgs84Handle.AddrOfPinnedObject(), ecefHandle.AddrOfPinnedObject());
-            ecefHandle.Free();
-            wgs84Handle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvPosEcefToWgs84(wgs84Handle.AddrOfPinnedObject(), ecefHandle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                ecefHandle.Free();
+                wgs84Handle.Free();
+            }
         }
 
         /// <summary>
@@ -321,10 +385,17 @@ namespace Immersal
         {
             GCHandle ecefHandle = GCHandle.Alloc(ecef, GCHandleType.Pinned);
             GCHandle wgs84Handle = GCHandle.Alloc(wgs84, GCHandleType.Pinned);
-            int r = Native.icvPosWgs84ToEcef(ecefHandle.AddrOfPinnedObject(), wgs84Handle.AddrOfPinnedObject());
-            wgs84Handle.Free();
-            ecefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvPosWgs84ToEcef(ecefHandle.AddrOfPinnedObject(), wgs84Handle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                wgs84Handle.Free();
+                ecefHandle.Free();
+            }
         }
 
         /// <summary>
@@ -338,11 +409,18 @@ namespace Immersal
         {
             GCHandle ecefHandle = GCHandle.Alloc(ecef, GCHandleType.Pinned);
             GCHandle mapToEcefHandle = GCHandle.Alloc(mapToEcef, GCHandleType.Pinned);
-            int r = Native.icvPosEcefToMap(out map, ecefHandle.AddrOfPinnedObject(),
-                mapToEcefHandle.AddrOfPinnedObject());
-            mapToEcefHandle.Free();
-            ecefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvPosEcefToMap(out map, ecefHandle.AddrOfPinnedObject(),
+                    mapToEcefHandle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                mapToEcefHandle.Free();
+                ecefHandle.Free();
+            }
         }
 
         /// <summary>
@@ -371,9 +449,16 @@ namespace Immersal
         public static int RotMapToEcef(out Quaternion ecef, Quaternion map, double[] mapToEcef)
         {
             GCHandle mapToEcefHandle = GCHandle.Alloc(mapToEcef, GCHandleType.Pinned);
-            int r = Native.icvRotMapToEcef(out ecef, ref map, mapToEcefHandle.AddrOfPinnedObject());
-            mapToEcefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvRotMapToEcef(out ecef, ref map, mapToEcefHandle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                mapToEcefHandle.Free();
+            }
         }
 
         /// <summary>
@@ -386,16 +471,23 @@ namespace Immersal
         public static int RotEcefToMap(out Quaternion map, Quaternion ecef, double[] mapToEcef)
         {
             GCHandle mapToEcefHandle = GCHandle.Alloc(mapToEcef, GCHandleType.Pinned);
-            int r = Native.icvRotEcefToMap(out map, ref ecef, mapToEcefHandle.AddrOfPinnedObject());
-            mapToEcefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvRotEcefToMap(out map, ref ecef, mapToEcefHandle.AddrOfPinnedObject());
+                return r;
+            }
+            finally
+            {
+                mapToEcefHandle.Free();
+            }
         }
 
         /// <summary>
         /// Converts ENU rotation to ECEF
         /// </summary>
-        /// <param name="quatEcef">Output double[4] ECEF quaternion (w, x, y, z)</param>
-        /// <param name="quatEnu">Input double[4] ENU quaternion (w, x, y, z)</param>
+        /// <param name="quatEcef">Output double[4] ECEF quaternion (x, y, z, w)</param>
+        /// <param name="quatEnu">Input double[4] ENU quaternion (x, y, z, w)</param>
         /// <param name="latDeg">Latitude in degrees</param>
         /// <param name="lonDeg">Longitude in degrees</param>
         /// <returns></returns>
@@ -403,10 +495,17 @@ namespace Immersal
         {
             GCHandle ecefHandle = GCHandle.Alloc(quatEcef, GCHandleType.Pinned);
             GCHandle enuHandle = GCHandle.Alloc(quatEnu, GCHandleType.Pinned);
-            int r = Native.icvRotEnuToEcef(ecefHandle.AddrOfPinnedObject(), enuHandle.AddrOfPinnedObject(), latDeg, lonDeg, oscp);
-            enuHandle.Free();
-            ecefHandle.Free();
-            return r;
+
+            try
+            {
+                int r = Native.icvRotEnuToEcef(ecefHandle.AddrOfPinnedObject(), enuHandle.AddrOfPinnedObject(), latDeg, lonDeg, oscp);
+                return r;
+            }
+            finally
+            {
+                enuHandle.Free();
+                ecefHandle.Free();
+            }
         }
 
         /// <summary>
@@ -420,7 +519,7 @@ namespace Immersal
         /// Set internal plugin parameters.
         ///
         /// Available parameters:
-        /// "LocalizationMaxPixels" - 0 is no limit (the default), 960*720 or higher.
+        /// "LocalizationMaxPixels" - 0 is no limit (the default), 180*180 or higher.
         /// "NumThreads" - how many CPU cores to use; -1 (system default) or a positive integer.
         /// "ImageCompressionLevel" - 0 (no compression, fastest) to 9 (slowest). Defaults to 4.
         /// </summary>
@@ -485,12 +584,8 @@ namespace Immersal
 
         public static bool Clear()
         {
-            foreach (KeyValuePair<int,int> keyValuePair in mapIdToHandleMapping)
-            {
-                if (RemoveMappingByMapId(keyValuePair.Key) == false)
-                    return false;
-            }
-
+            mapIdToHandleMapping.Clear();
+            handleToMapIdMapping.Clear();
             return true;
         }
 
@@ -522,7 +617,7 @@ namespace Immersal
     {
         private const string Assembly =
 #if UNITY_IOS && !UNITY_EDITOR
-		"__Internal";
+        "__Internal";
 #else
         "PosePlugin";
 #endif

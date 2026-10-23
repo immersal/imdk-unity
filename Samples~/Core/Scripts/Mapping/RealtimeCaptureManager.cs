@@ -1,5 +1,5 @@
-﻿/*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+/*===============================================================================
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -114,21 +114,21 @@ namespace Immersal.Samples.Mapping
             }
         }
 
-		void OnEnable()
-		{
-			ARSession.stateChanged += ARSessionStateChanged;
-		}
+        void OnEnable()
+        {
+            ARSession.stateChanged += ARSessionStateChanged;
+        }
 
-		void OnDisable()
-		{
-			ARSession.stateChanged -= ARSessionStateChanged;
-		}
+        void OnDisable()
+        {
+            ARSession.stateChanged -= ARSessionStateChanged;
+        }
 
-		private void ARSessionStateChanged(ARSessionStateChangedEventArgs args)
-		{
+        private void ARSessionStateChanged(ARSessionStateChangedEventArgs args)
+        {
             m_IsTracking = args.state == ARSessionState.SessionTracking;
             CheckState();
-		}
+        }
 
         private void LogStatus(string s)
         {

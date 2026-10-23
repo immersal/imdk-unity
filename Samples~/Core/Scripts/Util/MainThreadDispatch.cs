@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Threading;
 
 namespace Immersal.Samples.Util

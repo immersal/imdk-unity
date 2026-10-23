@@ -1,5 +1,5 @@
-﻿/*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+/*===============================================================================
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -15,119 +15,119 @@ using UnityEngine;
 
 namespace Immersal
 {
-	public class NativeBindings
-	{
-		#if UNITY_IOS
-		[DllImport("__Internal")]
-		public static extern void startLocation();
+    public class NativeBindings
+    {
+        #if UNITY_IOS
+        [DllImport("__Internal")]
+        public static extern void startLocation();
 
-		[DllImport("__Internal")]
-		public static extern void stopLocation();
+        [DllImport("__Internal")]
+        public static extern void stopLocation();
 
-		[DllImport("__Internal")]
-		public static extern double getLatitude();
+        [DllImport("__Internal")]
+        public static extern double getLatitude();
 
-		[DllImport("__Internal")]
-		public static extern double getLongitude();
+        [DllImport("__Internal")]
+        public static extern double getLongitude();
 
-		[DllImport("__Internal")]
-		public static extern double getAltitude();
+        [DllImport("__Internal")]
+        public static extern double getAltitude();
 
-		[DllImport("__Internal")]
-		public static extern double getEllipsoidalAltitude();
+        [DllImport("__Internal")]
+        public static extern double getEllipsoidalAltitude();
 
-		[DllImport("__Internal")]
-		public static extern double getHorizontalAccuracy();
+        [DllImport("__Internal")]
+        public static extern double getHorizontalAccuracy();
 
-		[DllImport("__Internal")]
-		public static extern double getVerticalAccuracy();
+        [DllImport("__Internal")]
+        public static extern double getVerticalAccuracy();
 
-		[DllImport("__Internal")]
-		public static extern bool locationServicesEnabled();
+        [DllImport("__Internal")]
+        public static extern bool locationServicesEnabled();
 
-		#elif PLATFORM_ANDROID
-		static AndroidJavaClass obj = new AndroidJavaClass("com.immersal.nativebindings.Main");
-		#endif
+        #elif PLATFORM_ANDROID
+        static AndroidJavaClass obj = new AndroidJavaClass("com.immersal.nativebindings.Main");
+        #endif
 
-		public static bool StartLocation()
-		{
-			if (!Input.location.isEnabledByUser)
-			{
-				return false;
-			}
+        public static bool StartLocation()
+        {
+            if (!Input.location.isEnabledByUser)
+            {
+                return false;
+            }
 
-			#if UNITY_IOS
-			startLocation();
-			#elif PLATFORM_ANDROID
-			obj.CallStatic("startLocation");
-			#endif
+            #if UNITY_IOS
+            startLocation();
+            #elif PLATFORM_ANDROID
+            obj.CallStatic("startLocation");
+            #endif
 
-			return true;
-		}
+            return true;
+        }
 
-		public static void StopLocation()
-		{
-			#if UNITY_IOS
-			stopLocation();
-			#elif PLATFORM_ANDROID
-			obj.CallStatic("stopLocation");
-			#endif
-		}
+        public static void StopLocation()
+        {
+            #if UNITY_IOS
+            stopLocation();
+            #elif PLATFORM_ANDROID
+            obj.CallStatic("stopLocation");
+            #endif
+        }
 
-		public static double GetLatitude()
-		{
-			#if UNITY_IOS
-			return getLatitude();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<double>("getLatitude");
-			#endif
-		}
+        public static double GetLatitude()
+        {
+            #if UNITY_IOS
+            return getLatitude();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<double>("getLatitude");
+            #endif
+        }
 
-		public static double GetLongitude()
-		{
-			#if UNITY_IOS
-			return getLongitude();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<double>("getLongitude");
-			#endif
-		}
+        public static double GetLongitude()
+        {
+            #if UNITY_IOS
+            return getLongitude();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<double>("getLongitude");
+            #endif
+        }
 
-		// ellipsoidalAltitude, not MSL
-		public static double GetAltitude()
-		{
-			#if UNITY_IOS
-			return getEllipsoidalAltitude();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<double>("getAltitude");
-			#endif
-		}
+        // ellipsoidalAltitude, not MSL
+        public static double GetAltitude()
+        {
+            #if UNITY_IOS
+            return getEllipsoidalAltitude();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<double>("getAltitude");
+            #endif
+        }
 
-		public static double GetHorizontalAccuracy()
-		{
-			#if UNITY_IOS
-			return getHorizontalAccuracy();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<double>("getHorizontalAccuracy");
-			#endif
-		}
+        public static double GetHorizontalAccuracy()
+        {
+            #if UNITY_IOS
+            return getHorizontalAccuracy();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<double>("getHorizontalAccuracy");
+            #endif
+        }
 
-		public static double GetVerticalAccuracy()
-		{
-			#if UNITY_IOS
-			return getVerticalAccuracy();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<double>("getVerticalAccuracy");
-			#endif
-		}
+        public static double GetVerticalAccuracy()
+        {
+            #if UNITY_IOS
+            return getVerticalAccuracy();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<double>("getVerticalAccuracy");
+            #endif
+        }
 
-		public static bool LocationServicesEnabled()
-		{
-			#if UNITY_IOS
-			return locationServicesEnabled();
-			#elif PLATFORM_ANDROID
-			return obj.CallStatic<bool>("locationServicesEnabled");
-			#endif
-		}
-	}
+        public static bool LocationServicesEnabled()
+        {
+            #if UNITY_IOS
+            return locationServicesEnabled();
+            #elif PLATFORM_ANDROID
+            return obj.CallStatic<bool>("locationServicesEnabled");
+            #endif
+        }
+    }
 }
 #endif

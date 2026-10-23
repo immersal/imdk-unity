@@ -1,5 +1,27 @@
 # Changelog
 
+## [2.5.0] - 2026-10-23
+
+### Added
+- Added a URP renderer asset check to the project validator
+
+### Fixed
+- Unified indentation, line endings, and encoding across all .cs source files
+- Fixed an issue where the default mobile renderer asset was not detected by the project validator
+- Fixed minor bugs in the point cloud shader
+- Core: Improved robustness of the native wrapper
+
+### Changed
+- Reverted `TrackingQuality` to its previous behaviour in `ARFoundationSupport`
+- Relaxed the Unity OpenXR plugin version requirement to 1.14.3 for HoloLens 2 support
+- Updated all native plugins to version 2.5.0, including minor robustness improvements
+- Removed the WSA (HoloLens 2) and Android x86_64 (Magic Leap 2) plugins from the standard distribution. Please [contact sales](mailto:sales@immersal.com) if you require support for these devices.
+- Updated copyright texts
+
+## [2.4.1] - 2026-10-12
+
+- Internal release
+
 ## [2.4.0] - 2026-08-31
 
 ### Added
