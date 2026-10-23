@@ -3,6 +3,7 @@ This is the core package for the Immersal Unity SDK.
 
 # Compatibility
 
+- Unity 6000.x LTS
 - Unity 2022.3 LTS
 - AR Foundation 5.1+
 
