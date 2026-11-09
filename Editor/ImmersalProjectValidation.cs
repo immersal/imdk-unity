@@ -1,5 +1,5 @@
 /*===============================================================================
-Copyright (C) 2026 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -527,6 +527,14 @@ namespace Immersal
                 Error = false,
                 RequiresManualFix = false
             },
+            new ImmersalProjectIssue()
+            {
+                Message = () => "Immersal URP assets are missing, lack the AR Background Renderer Feature, or are overridden by mobile quality settings.",
+                Check = HasImmersalRendererAssets,
+                Fix = SetupRenderPipeline,
+                Error = false,
+                RequiresManualFix = false
+            },
             // android manifest exists
             new ImmersalProjectIssue()
             {
@@ -559,17 +567,23 @@ namespace Immersal
         
         private static void SetupRenderPipeline()
         {
-            const string rendererDataPath = "Assets/ImmersalURPAsset_Renderer.asset";
-            const string renderPipelineAssetPath = "Assets/ImmersalURPAsset.asset";
+            const string rendererDataPath = "Assets/Settings/ImmersalURPAsset_Renderer.asset";
+            const string renderPipelineAssetPath = "Assets/Settings/ImmersalURPAsset.asset";
 
             UniversalRendererData rendererData =
                 AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererDataPath);
 
             if (rendererData == null)
             {
-                rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
-                AssetDatabase.CreateAsset(rendererData, rendererDataPath);
+                rendererData = CopyImmersalRendererTemplate(rendererDataPath);
+                if (rendererData == null)
+                {
+                    rendererData = ScriptableObject.CreateInstance<UniversalRendererData>();
+                    AssetDatabase.CreateAsset(rendererData, rendererDataPath);
+                }
             }
+
+            EnsureARBackgroundRendererFeature(rendererData);
 
             UniversalRenderPipelineAsset renderPipelineAsset =
                 AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(renderPipelineAssetPath);
@@ -586,14 +600,128 @@ namespace Immersal
             }
 
             // Set the Immersal URP asset as the project default.
-            // Clear the current quality-level override so the default asset is actually used.
+            // Clear mobile quality-level overrides so mobile platforms use the project default.
             GraphicsSettings.defaultRenderPipeline = renderPipelineAsset;
-            QualitySettings.renderPipeline = null;
+            ClearMobileQualityLevelRenderPipelineOverrides();
 
             EditorUtility.SetDirty(rendererData);
             EditorUtility.SetDirty(renderPipelineAsset);
-            AssetDatabase.SaveAssets();
+            AssetDatabase.SaveAssetIfDirty(rendererData);
+            AssetDatabase.SaveAssetIfDirty(renderPipelineAsset);
             AssetDatabase.Refresh();
+        }
+
+        private static void ClearMobileQualityLevelRenderPipelineOverrides()
+        {
+            UnityEngine.Object qualitySettingsObject = QualitySettings.GetQualitySettings();
+            if (qualitySettingsObject == null)
+            {
+                ImmersalLogger.LogError("Could not access the project's Quality Settings.");
+                return;
+            }
+
+            SerializedObject serializedSettings = new SerializedObject(qualitySettingsObject);
+            SerializedProperty qualityLevels = serializedSettings.FindProperty("m_QualitySettings");
+            if (qualityLevels == null)
+            {
+                ImmersalLogger.LogError("Could not find quality levels in the project's Quality Settings.");
+                return;
+            }
+
+            foreach (int index in GetActiveMobileQualityLevelIndices())
+            {
+                if (index < 0 || index >= qualityLevels.arraySize)
+                    continue;
+
+                SerializedProperty qualityLevel = qualityLevels.GetArrayElementAtIndex(index);
+                SerializedProperty renderPipeline = qualityLevel.FindPropertyRelative("customRenderPipeline");
+                if (renderPipeline != null)
+                    renderPipeline.objectReferenceValue = null;
+            }
+
+            if (serializedSettings.ApplyModifiedProperties())
+            {
+                EditorUtility.SetDirty(qualitySettingsObject);
+                AssetDatabase.SaveAssetIfDirty(qualitySettingsObject);
+            }
+        }
+
+        private static bool HasImmersalRendererAssets()
+        {
+            const string rendererDataPath = "Assets/Settings/ImmersalURPAsset_Renderer.asset";
+            const string renderPipelineAssetPath = "Assets/Settings/ImmersalURPAsset.asset";
+
+            UniversalRendererData rendererData =
+                AssetDatabase.LoadAssetAtPath<UniversalRendererData>(rendererDataPath);
+            UniversalRenderPipelineAsset renderPipelineAsset =
+                AssetDatabase.LoadAssetAtPath<UniversalRenderPipelineAsset>(renderPipelineAssetPath);
+
+            return rendererData != null && renderPipelineAsset != null &&
+                   rendererData.rendererFeatures.Any(IsARBackgroundRendererFeature) &&
+                   GraphicsSettings.defaultRenderPipeline == renderPipelineAsset &&
+                   !HasMobileQualityLevelRenderPipelineOverride();
+        }
+
+        private static bool HasMobileQualityLevelRenderPipelineOverride()
+        {
+            return GetActiveMobileQualityLevelIndices()
+                .Any(index => QualitySettings.GetRenderPipelineAssetAt(index) != null);
+        }
+
+        private static IEnumerable<int> GetActiveMobileQualityLevelIndices()
+        {
+            return new[] { "Android", "iOS" }
+                .SelectMany(QualitySettings.GetActiveQualityLevelsForPlatform)
+                .Distinct();
+        }
+
+        private static UniversalRendererData CopyImmersalRendererTemplate(string destinationPath)
+        {
+            string templatePath = FindImmersalRendererTemplatePath();
+
+            if (string.IsNullOrEmpty(templatePath) || !AssetDatabase.CopyAsset(templatePath, destinationPath))
+                return null;
+
+            AssetDatabase.Refresh();
+            return AssetDatabase.LoadAssetAtPath<UniversalRendererData>(destinationPath);
+        }
+
+        private static void EnsureARBackgroundRendererFeature(UniversalRendererData rendererData)
+        {
+            if (rendererData.rendererFeatures.Any(IsARBackgroundRendererFeature))
+                return;
+
+            string templatePath = FindImmersalRendererTemplatePath();
+            ScriptableRendererFeature templateFeature = string.IsNullOrEmpty(templatePath)
+                ? null
+                : AssetDatabase.LoadAllAssetsAtPath(templatePath)
+                    .OfType<ScriptableRendererFeature>()
+                    .FirstOrDefault(IsARBackgroundRendererFeature);
+
+            if (templateFeature == null)
+            {
+                ImmersalLogger.LogError("Could not locate ARBackgroundRendererFeature in the Immersal renderer template.");
+                return;
+            }
+
+            ScriptableRendererFeature feature = UnityEngine.Object.Instantiate(templateFeature);
+            feature.name = templateFeature.name;
+            AssetDatabase.AddObjectToAsset(feature, rendererData);
+            rendererData.rendererFeatures.Add(feature);
+            EditorUtility.SetDirty(feature);
+            EditorUtility.SetDirty(rendererData);
+        }
+
+        private static bool IsARBackgroundRendererFeature(ScriptableRendererFeature feature)
+        {
+            return feature != null && feature.GetType().Name == "ARBackgroundRendererFeature";
+        }
+
+        private static string FindImmersalRendererTemplatePath()
+        {
+            return AssetDatabase.FindAssets("ImmersalURPAsset_Renderer", new[] { "Packages" })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .FirstOrDefault(path => path.EndsWith("/Editor/ImmersalURPAsset_Renderer.asset", StringComparison.Ordinal));
         }
 
         private static void ConfigureRenderPipelineAsset(UniversalRenderPipelineAsset asset)

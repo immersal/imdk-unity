@@ -1,5 +1,5 @@
 ﻿/*===============================================================================
-Copyright (C) 2024 Immersal - Part of Hexagon. All Rights Reserved.
+Copyright (C) 2026 Immersal Ltd. All Rights Reserved.
 
 This file is part of the Immersal SDK.
 
@@ -115,7 +115,7 @@ namespace Immersal
             EditorGUILayout.Separator();
             EditorGUILayout.Separator();
 
-            EditorGUILayout.LabelField("(C) 2026 Immersal - Part of Hexagon. All Right Reserved.");
+            EditorGUILayout.LabelField("(C) 2026 Immersal Ltd. All Right Reserved.");
         }
 
         void OnInspectorUpdate()
